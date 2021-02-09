@@ -35,27 +35,59 @@ m = model(z = z,
           T = length(z),
           tspan = (1.0, 26.0),
           λ = λ,
-		  r_tune = 0.001,
-		  r_prior = Gamma(1, 1)
+		  r_tune = 0.1,
+		  r_prior = Gamma(1, 1),
+		  a_tune = 0.2,
+		  a_prior = Gamma(10, 10),
+		  κ_tune = 10.0,
+		  κ_prior = Gamma(5, 100),
+		  K_tune = 5.0,
+		  K_prior = Gamma(5, 100)
 		  )
 
 pars = parameters(u0 = 1000.0,
-                  r = 0.5,
-				  K = 1000.0,
+                  r = 0.2,
+				  K = 500.0,
 				  a = 50.0,
 				  κ = 500.0,
 				  accept_r = 0,
+				  accept_a = 0,
+				  accept_κ = 0,
+				  accept_K = 0,
 				  u = fill(0.0, 26),
 				  loglik = 0.0)
 
-sample_r!(pars, m)
 
-chain = mcmc(m, pars, 1000)
+chain = mcmc(m, pars, 10000)
 
-sum(chain["accept_r"])
+sum(chain["accept_K"][5001:10000]) / 5000
+
+plot(chain["K"])
+histogram(chain["K"][5001:10000])
+
+sum(chain["accept_kappa"][5001:10000]) / 5000
+
+plot(chain["kappa"])
+histogram(chain["kappa"][5001:10000])
+
+sum(chain["accept_a"][5001:10000]) / 5000
+
+plot(chain["a"])
+histogram(chain["a"][5001:10000])
+
+sum(chain["accept_r"][5001:10000]) / 5000
 
 plot(chain["r"])
-histogram(chain["r"][501:1000])
+histogram(chain["r"][5001:10000])
 
 scatter(1:26, z)
-plot!(1:26, chain["u"][:, end])
+plot!(1:26, chain["u"][:, 9900:10000], color = :gray, legend = false)
+
+scatter(chain["r"][5001:end], chain["K"][5001:end])
+scatter(chain["r"][5001:end], chain["a"][5001:end])
+scatter(chain["r"][5001:end], chain["kappa"][5001:end])
+
+scatter(chain["K"][5001:end], chain["a"][5001:end])
+scatter(chain["K"][5001:end], chain["kappa"][5001:end])
+
+scatter(chain["a"][5001:end], chain["kappa"][5001:end])
