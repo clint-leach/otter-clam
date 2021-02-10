@@ -2,9 +2,11 @@
 
 function likelihood(u, m)
 
+	@unpack z, tobs = m
+
 	loglik = 0.0
-	for t in 1:m.T
-		loglik += logpdf(truncated(Normal(u[t], 50.0), 0.0, Inf), z[t])
+	for t in 1:length(tobs)
+		loglik += logpdf(truncated(Normal(u[tobs[t]], 50.0), 0.0, Inf), z[t])
 	end
 
 	return loglik

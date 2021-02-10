@@ -30,9 +30,13 @@ sol = solve(prob, Tsit5(), saveat=1.0)
 
 z = rand.(truncated.(Normal.(sol[1, :], 50), 0.0, Inf))
 
+tobs = [5, 10, 15, 20, 25]
+zobs = z[tobs]
+
 # Setting up model and parameter objects
-m = model(z = z,
-          T = length(z),
+m = model(z = zobs,
+          T = length(λ),
+		  tobs = tobs,
           tspan = (1.0, 26.0),
           λ = λ,
 		  r_tune = 0.1,
@@ -81,6 +85,7 @@ plot(chain["r"])
 histogram(chain["r"][5001:10000])
 
 scatter(1:26, z)
+scatter!(tobs, zobs)
 plot!(1:26, chain["u"][:, 9900:10000], color = :gray, legend = false)
 
 scatter(chain["r"][5001:end], chain["K"][5001:end])
