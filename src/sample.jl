@@ -1,12 +1,16 @@
 # Sampling scripts and helper functions
 
-function likelihood(u, m)
+function likelihood(sol, m)
 
-	@unpack z, tobs = m
+	@unpack z, tobs, N = m
 
 	loglik = 0.0
-	for t in 1:length(tobs)
-		loglik += logpdf(truncated(Normal(u[tobs[t]], 50.0), 0.0, Inf), z[t])
+	for i in 1:N
+		for t in 1:length(tobs)
+			if !ismissing(z[t, i])
+				loglik += logpdf(truncated(Normal(sol[i, tobs[t]], 100.0), 0.0, Inf), z[t, i])
+			end
+		end
 	end
 
 	return loglik
@@ -158,7 +162,7 @@ function mcmc(m, pars, nmcmc)
 				 "accept_a" => fill(0, nmcmc),
 				 "accept_kappa" => fill(0, nmcmc),
 				 "accept_K" => fill(0, nmcmc),
-				 "u" => fill(0.0, 26, nmcmc))
+				 "u" => fill(0.0, m.N, m.T, nmcmc))
 
 	# Initialize process and likelihood
 	p =  [pars.r, pars.K, pars.a, pars.κ, m.λ]
@@ -189,7 +193,7 @@ function mcmc(m, pars, nmcmc)
 		chain["accept_kappa"][i] = pars.accept_κ
 		chain["accept_K"][i] = pars.accept_K
 
-		chain["u"][:, i] = pars.u
+		chain["u"][:, :, i] = [pars.u[j, t] for j in 1:m.N, t in 1:m.T]
 
 	end
 

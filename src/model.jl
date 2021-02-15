@@ -6,6 +6,7 @@
 	T
 	tobs
 	tspan
+	N
 	λ
 
 	r_tune
@@ -29,7 +30,7 @@ end
 	a::Float64
 	κ::Float64
 
-	u::Vector{Float64}
+	u
 	loglik::Float64
 
 	accept_r::Int64
