@@ -20,11 +20,14 @@
 
 	K_tune
 	K_prior
+
+	u0_tune
+	u0_prior
 end
 
 @with_kw mutable struct parameters
 
-	u0::Float64
+	u0::Vector{Float64}
 	r::Float64
 	K::Float64
 	a::Float64
@@ -37,5 +40,6 @@ end
 	accept_a::Int64
 	accept_κ::Int64
 	accept_K::Int64
+	accept_u0::Int64
 
 end

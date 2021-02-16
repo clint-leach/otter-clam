@@ -152,16 +152,55 @@ function sample_K!(pars, m)
 	@pack! pars = K, accept_K, u, loglik
 end
 
+# Sample initial conditions
+function sample_u0!(pars, m)
+
+	@unpack r, accept_u0, u0, K, a, κ, loglik, u = pars
+	@unpack λ, u0_tune, u0_prior, N = m
+
+	u0_star = deepcopy(u0)
+
+	for i in 1:N
+		u0_star[i] = rand(Gamma(u0[i] / u0_tune, u0_tune))
+	end
+
+	# Proposal process model
+	p =  [r, K, a, κ, λ]
+	u_star = process(p, u0_star, m)
+
+	# Proposal likelihood
+	loglik_star = likelihood(u_star, m)
+
+	# Computing the MH ratio
+	mh1 = loglik_star + sum(logpdf.(u0_prior, u0_star)) + sum(logpdf.(Gamma.(u0_star ./ u0_tune, u0_tune), u0))
+	mh2 = loglik + sum(logpdf.(u0_prior, u0)) +  sum(logpdf.(Gamma.(u0 ./ u0_tune, u0_tune), u0_star))
+
+	# Accept/reject
+	prob = exp(mh1 - mh2)
+	if rand() > prob
+		accept_u0 = 0
+	else
+		accept_u0 = 1
+		u0 = u0_star
+		u = u_star
+		loglik = loglik_star
+	end
+
+	@pack! pars = u0, accept_u0, u, loglik
+end
+
 function mcmc(m, pars, nmcmc)
 
 	chain = Dict("r" => fill(0.0, nmcmc),
 	             "a" => fill(0.0, nmcmc),
 				 "kappa" => fill(0.0, nmcmc),
 				 "K" => fill(0.0, nmcmc),
+				 "u0" => fill(0.0, N, nmcmc),
 	             "accept_r" => fill(0, nmcmc),
 				 "accept_a" => fill(0, nmcmc),
 				 "accept_kappa" => fill(0, nmcmc),
 				 "accept_K" => fill(0, nmcmc),
+				 "accept_u0" => fill(0, nmcmc),
 				 "u" => fill(0.0, m.N, m.T, nmcmc))
 
 	# Initialize process and likelihood
@@ -181,17 +220,21 @@ function mcmc(m, pars, nmcmc)
 
 		sample_K!(pars, m)
 
+		sample_u0!(pars, m)
+
 		# Saving samples
 
 		chain["r"][i] = pars.r
 		chain["a"][i] = pars.a
 		chain["kappa"][i] = pars.κ
 		chain["K"][i] = pars.K
+		chain["u0"][:, i] = pars.u0
 
 		chain["accept_r"][i] = pars.accept_r
 		chain["accept_a"][i] = pars.accept_a
 		chain["accept_kappa"][i] = pars.accept_κ
 		chain["accept_K"][i] = pars.accept_K
+		chain["accept_u0"][i] = pars.accept_u0
 
 		chain["u"][:, :, i] = [pars.u[j, t] for j in 1:m.N, t in 1:m.T]
 

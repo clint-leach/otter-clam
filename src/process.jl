@@ -14,7 +14,7 @@ function process(p, u0, m)
 
 	@unpack tspan, λ, N = m
 
-	prob = ODEProblem(prey!, fill(u0, N), tspan, p)
+	prob = ODEProblem(prey!, u0, tspan, p)
 
 	sol = solve(prob, Tsit5(), saveat=1.0)
 

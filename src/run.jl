@@ -5,6 +5,7 @@ using Distributions
 using Plots
 using StatsPlots
 using RCall
+using DataFrames
 
 include("model.jl")
 include("process.jl")
@@ -15,7 +16,7 @@ R"data <- readRDS('data/otter_array.rds')"
 @rget data
 
 # Reading in prey data
-R"sag <- readRDS('data/sag_array.rds')"
+R"sag <- readRDS('data/SAG_array.rds')"
 @rget sag
 
 # Number of sites
@@ -30,7 +31,7 @@ T = size(data)[1]
 # Simulating prey data
 p = [0.2, 1000.0, 50.0, 500.0, λ]
 
-prob = ODEProblem(prey!, fill(1000, N), (1.0, 26.0), p)
+prob = ODEProblem(prey!, rand(Normal(1000, 100), N), (1.0, 26.0), p)
 
 sol = solve(prob, Tsit5(), saveat=1.0)
 
@@ -40,9 +41,9 @@ tobs = [5, 10, 15, 20, 25]
 zobs = z[tobs, :]
 
 # Setting up model and parameter objects
-m = model(z = z,
+m = model(z = zobs,
           T = T,
-		  tobs = 1:26,
+		  tobs = tobs,
           tspan = (1.0, 26.0),
 		  N = N,
           λ = λ,
@@ -52,11 +53,13 @@ m = model(z = z,
 		  a_prior = Gamma(10, 10),
 		  κ_tune = 2.0,
 		  κ_prior = Gamma(5, 100),
-		  K_tune = 0.1,
-		  K_prior = Gamma(5, 100)
+		  K_tune = 1,
+		  K_prior = Gamma(5, 100),
+		  u0_tune = 1.0,
+		  u0_prior = Gamma(5, 200)
 		  )
 
-pars = parameters(u0 = 1000.0,
+pars = parameters(u0 = fill(1000.0, N),
                   r = 0.2,
 				  K = 1000.0,
 				  a = 50.0,
@@ -65,10 +68,16 @@ pars = parameters(u0 = 1000.0,
 				  accept_a = 0,
 				  accept_κ = 0,
 				  accept_K = 0,
+				  accept_u0 = 0,
 				  u = sol,
 				  loglik = 0.0)
 
 chain = mcmc(m, pars, 10000)
+
+sum(chain["accept_u0"][5001:end]) / 5000
+
+plot(chain["u0"][3, :])
+histogram(chain["u0"][3, :])
 
 sum(chain["accept_K"][5001:10000]) / 5000
 
@@ -102,3 +111,5 @@ scatter(chain["K"][5001:end], chain["a"][5001:end])
 scatter(chain["K"][5001:end], chain["kappa"][5001:end])
 
 scatter(chain["a"][5001:end], chain["kappa"][5001:end])
+
+scatter(chain["u0"][1, 5001:end], chain["K"][5001:end])
