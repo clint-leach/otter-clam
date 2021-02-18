@@ -8,7 +8,7 @@ function likelihood(sol, m)
 	for i in 1:N
 		for t in 1:length(tobs)
 			if !ismissing(z[t, i])
-				loglik += logpdf(truncated(Normal(sol[i, tobs[t]], 100.0), 0.0, Inf), z[t, i])
+				loglik += logpdf(truncated(Normal(sol[i, tobs[t]], 50.0), 0.0, Inf), z[t, i])
 			end
 		end
 	end
@@ -23,7 +23,9 @@ function sample_r!(pars, m)
 	@unpack λ, r_tune, r_prior = m
 
 	# Proposal
-	r_star = rand(Gamma(r / r_tune, r_tune))
+	forward_prop = truncated(Normal(r, r_tune), 0.0, Inf)
+	r_star = rand(forward_prop)
+	back_prop = truncated(Normal(r_star, r_tune), 0.0, Inf)
 
 	# Proposal process model
 	p_star =  [r_star, K, a, κ, λ]
@@ -33,8 +35,8 @@ function sample_r!(pars, m)
 	loglik_star = likelihood(u_star, m)
 
 	# Computing the MH ratio
-	mh1 = loglik_star + logpdf(r_prior, r_star) + logpdf(Gamma(r_star / r_tune, r_tune), r)
-	mh2 = loglik + logpdf(r_prior, r) +  logpdf(Gamma(r / r_tune, r_tune), r_star)
+	mh1 = loglik_star + logpdf(r_prior, r_star) + logpdf(back_prop, r)
+	mh2 = loglik + logpdf(r_prior, r) + logpdf(forward_prop, r_star)
 
 	# Accept/reject
 	prob = exp(mh1 - mh2)
@@ -57,7 +59,9 @@ function sample_a!(pars, m)
 	@unpack λ, a_tune, a_prior = m
 
 	# Proposal
-	a_star = rand(Gamma(a / a_tune, a_tune))
+	forward_prop = truncated(Normal(a, a_tune), 0.0, Inf)
+	a_star = rand(forward_prop)
+	back_prop = truncated(Normal(a_star, a_tune), 0.0, Inf)
 
 	# Proposal process model
 	p_star =  [r, K, a_star, κ, λ]
@@ -67,8 +71,8 @@ function sample_a!(pars, m)
 	loglik_star = likelihood(u_star, m)
 
 	# Computing the MH ratio
-	mh1 = loglik_star + logpdf(a_prior, a_star) + logpdf(Gamma(a_star / a_tune, a_tune), a)
-	mh2 = loglik + logpdf(a_prior, a) +  logpdf(Gamma(a / a_tune, a_tune), a_star)
+	mh1 = loglik_star + logpdf(a_prior, a_star)  + logpdf(back_prop, a)
+	mh2 = loglik + logpdf(a_prior, a) + logpdf(forward_prop, a_star)
 
 	# Accept/reject
 	prob = exp(mh1 - mh2)
@@ -91,18 +95,24 @@ function sample_κ!(pars, m)
 	@unpack λ, κ_tune, κ_prior = m
 
 	# Proposal
-	κ_star = rand(Gamma(κ / κ_tune, κ_tune))
+	forward_prop = truncated(Normal(κ, κ_tune), 0.0, Inf)
+	κ_star = rand(forward_prop)
+	back_prop = truncated(Normal(κ_star, κ_tune), 0.0, Inf)
 
 	# Proposal process model
 	p_star =  [r, K, a, κ_star, λ]
 	u_star = process(p_star, u0, m)
 
 	# Proposal likelihood
-	loglik_star = likelihood(u_star, m)
+	if u_star.t[end] < 26.0
+		loglik_star = -Inf
+	else
+		loglik_star = likelihood(u_star, m)
+	end
 
 	# Computing the MH ratio
-	mh1 = loglik_star + logpdf(κ_prior, κ_star) + logpdf(Gamma(κ_star / κ_tune, κ_tune), κ)
-	mh2 = loglik + logpdf(κ_prior, κ) +  logpdf(Gamma(κ / κ_tune, κ_tune), κ_star)
+	mh1 = loglik_star + logpdf(κ_prior, κ_star) + logpdf(back_prop, κ)
+	mh2 = loglik + logpdf(κ_prior, κ) + logpdf(forward_prop, κ_star)
 
 	# Accept/reject
 	prob = exp(mh1 - mh2)
@@ -121,11 +131,13 @@ end
 # Sample functional response saturation constant
 function sample_K!(pars, m)
 
-	@unpack r, accept_K, u0, K, a, κ, loglik, u = pars
+	@unpack r, accept_K, u0, K, a, κ, loglik, u, u0 = pars
 	@unpack λ, K_tune, K_prior = m
 
 	# Proposal
-	K_star = rand(Gamma(K / K_tune, K_tune))
+	forward_prop = truncated(Normal(K, K_tune), 0.0, Inf)
+	K_star = rand(forward_prop)
+	back_prop = truncated(Normal(K_star, K_tune), 0.0, Inf)
 
 	# Proposal process model
 	p_star =  [r, K_star, a, κ, λ]
@@ -135,8 +147,8 @@ function sample_K!(pars, m)
 	loglik_star = likelihood(u_star, m)
 
 	# Computing the MH ratio
-	mh1 = loglik_star + logpdf(K_prior, K_star) + logpdf(Gamma(K_star / K_tune, K_tune), K)
-	mh2 = loglik + logpdf(K_prior, K) +  logpdf(Gamma(K / K_tune, K_tune), K_star)
+	mh1 = loglik_star + logpdf(K_prior, K_star) + logpdf(back_prop, K)
+	mh2 = loglik + logpdf(K_prior, K) + logpdf(forward_prop, K_star)
 
 	# Accept/reject
 	prob = exp(mh1 - mh2)
@@ -158,11 +170,9 @@ function sample_u0!(pars, m)
 	@unpack r, accept_u0, u0, K, a, κ, loglik, u = pars
 	@unpack λ, u0_tune, u0_prior, N = m
 
-	u0_star = deepcopy(u0)
-
-	for i in 1:N
-		u0_star[i] = rand(Gamma(u0[i] / u0_tune, u0_tune))
-	end
+	forward_prop = truncated.(Normal.(u0, u0_tune), 0.0, Inf)
+	u0_star = rand.(forward_prop)
+	back_prop = truncated.(Normal.(u0_star, u0_tune), 0.0, Inf)
 
 	# Proposal process model
 	p =  [r, K, a, κ, λ]
@@ -172,8 +182,8 @@ function sample_u0!(pars, m)
 	loglik_star = likelihood(u_star, m)
 
 	# Computing the MH ratio
-	mh1 = loglik_star + sum(logpdf.(u0_prior, u0_star)) + sum(logpdf.(Gamma.(u0_star ./ u0_tune, u0_tune), u0))
-	mh2 = loglik + sum(logpdf.(u0_prior, u0)) +  sum(logpdf.(Gamma.(u0 ./ u0_tune, u0_tune), u0_star))
+	mh1 = loglik_star + sum(logpdf.(u0_prior, u0_star)) + sum(logpdf.(back_prop, u0))
+	mh2 = loglik + sum(logpdf.(u0_prior, u0)) +  sum(logpdf.(forward_prop, u0_star))
 
 	# Accept/reject
 	prob = exp(mh1 - mh2)
@@ -216,7 +226,7 @@ function mcmc(m, pars, nmcmc)
 
 		sample_a!(pars, m)
 
-		sample_κ!(pars, m)
+		# sample_κ!(pars, m)
 
 		sample_K!(pars, m)
 
