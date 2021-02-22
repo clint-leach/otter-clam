@@ -19,8 +19,14 @@ R"data <- readRDS('data/otter_array.rds')"
 R"sag <- readRDS('data/SAG_array.rds')"
 @rget sag
 
+# Subsetting to sites with the prey observed
+# obs = findall(sum(coalesce.(sag, 0.0), dims = 1)[1, :] .> 0)
+data = data[:, 8]
+sag = sag[:, 8]
+
 # Number of sites
-N = size(data)[2]
+# N = size(data)[2]
+N = 1
 
 # Number of years
 T = size(data)[1]
@@ -37,32 +43,29 @@ sol = solve(prob, Tsit5(), saveat=1.0)
 
 z = [rand(truncated(Normal(sol[i, t], 50), 0.0, Inf)) for t in 1:T, i in 1:N]
 
-tobs = [5, 10, 15, 20, 25]
-zobs = z[tobs, :]
-
 # Setting up model and parameter objects
-m = model(z = zobs,
+m = model(z = sag,
           T = T,
-		  tobs = tobs,
+		  tobs = 1:T,
           tspan = (1.0, 26.0),
 		  N = N,
           λ = λ,
-		  r_tune = 0.01,
+		  r_tune = 0.2,
 		  r_prior = Gamma(1, 1),
-		  a_tune = 0.1,
-		  a_prior = Gamma(10, 10),
-		  κ_tune = 2.0,
-		  κ_prior = Gamma(5, 100),
-		  K_tune = 1,
+		  a_tune = 20.0,
+		  a_prior = Gamma(1, 50),
+		  κ_tune = 100.0,
+		  κ_prior = Gamma(50, 10),
+		  K_tune = 100.0,
 		  K_prior = Gamma(5, 100),
-		  u0_tune = 1.0,
-		  u0_prior = Gamma(5, 200)
+		  u0_tune = 500.0,
+		  u0_prior = Gamma(5, 100)
 		  )
 
-pars = parameters(u0 = fill(1000.0, N),
+pars = parameters(u0 = fill(600.0, N),
                   r = 0.2,
-				  K = 1000.0,
-				  a = 50.0,
+				  K = 600.0,
+				  a = 100.0,
 				  κ = 500.0,
 				  accept_r = 0,
 				  accept_a = 0,
@@ -72,44 +75,51 @@ pars = parameters(u0 = fill(1000.0, N),
 				  u = sol,
 				  loglik = 0.0)
 
-chain = mcmc(m, pars, 10000)
+chain = mcmc(m, pars, 50000)
 
-sum(chain["accept_u0"][5001:end]) / 5000
+# Univariate plots
+sum(chain["accept_u0"][25001:end]) / 25000
 
-plot(chain["u0"][3, :])
-histogram(chain["u0"][3, :])
+plot(chain["u0"][1, :])
+histogram(chain["u0"][1, 25001:end], normalize = :true)
+plot!(Gamma(5, 100))
 
-sum(chain["accept_K"][5001:10000]) / 5000
+sum(chain["accept_K"][25001:end]) / 25000
 
 plot(chain["K"])
-histogram(chain["K"][5001:10000])
+histogram(chain["K"][25001:end], normalize = :true)
+plot!(Gamma(5, 100))
 
-sum(chain["accept_kappa"][5001:10000]) / 5000
+sum(chain["accept_kappa"][25001:end]) / 25000
 
 plot(chain["kappa"])
-histogram(chain["kappa"][5001:10000])
+histogram(chain["kappa"][25001:end], normalize = :true)
+plot!(Gamma(10, 50))
 
-sum(chain["accept_a"][5001:10000]) / 5000
+sum(chain["accept_a"][25001:end]) / 25000
 
 plot(chain["a"])
-histogram(chain["a"][5001:10000])
+histogram(chain["a"][25001:end], normalize = :true)
+plot!(Gamma(1, 50))
 
-sum(chain["accept_r"][5001:10000]) / 5000
+sum(chain["accept_r"][25001:end]) / 25000
 
 plot(chain["r"])
-histogram(chain["r"][5001:10000])
+histogram(chain["r"][25001:end], normalize = :true)
+plot!(Gamma(1, 1))
 
-scatter(1:26, z[:, 20])
-# scatter!(tobs, zobs)
-plot!(1:26, chain["u"][20, :, 9900:10000], color = :gray, legend = false)
+# Dynamics
+plot(1:26, chain["u"][1, :, 49900:end], color = :gray, legend = false)
+scatter!(1:26, m.z[:, 1])
 
-scatter(chain["r"][5001:end], chain["K"][5001:end])
-scatter(chain["r"][5001:end], chain["a"][5001:end])
-scatter(chain["r"][5001:end], chain["kappa"][5001:end])
+# Bivariate plots
+scatter(chain["r"][25001:end], chain["K"][25001:end])
+scatter(chain["r"][25001:end], chain["a"][25001:end])
+scatter(chain["r"][25001:end], chain["kappa"][25001:end])
 
-scatter(chain["K"][5001:end], chain["a"][5001:end])
-scatter(chain["K"][5001:end], chain["kappa"][5001:end])
+scatter(chain["K"][25001:end], chain["a"][25001:end])
+scatter(chain["K"][225001:end], chain["kappa"][25001:end])
 
-scatter(chain["a"][5001:end], chain["kappa"][5001:end])
+scatter(chain["a"][25001:end], chain["kappa"][25001:end])
 
-scatter(chain["u0"][1, 5001:end], chain["K"][5001:end])
+scatter(chain["u0"][1, 25001:end], chain["K"][25001:end])
