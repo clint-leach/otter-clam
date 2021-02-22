@@ -32,7 +32,11 @@ function sample_r!(pars, m)
 	u_star = process(p_star, u0, m)
 
 	# Proposal likelihood
-	loglik_star = likelihood(u_star, m)
+	if u_star.t[end] < 26.0
+		loglik_star = -Inf
+	else
+		loglik_star = likelihood(u_star, m)
+	end
 
 	# Computing the MH ratio
 	mh1 = loglik_star + logpdf(r_prior, r_star) + logpdf(back_prop, r)
@@ -68,7 +72,11 @@ function sample_a!(pars, m)
 	u_star = process(p_star, u0, m)
 
 	# Proposal likelihood
-	loglik_star = likelihood(u_star, m)
+	if u_star.t[end] < 26.0
+		loglik_star = -Inf
+	else
+		loglik_star = likelihood(u_star, m)
+	end
 
 	# Computing the MH ratio
 	mh1 = loglik_star + logpdf(a_prior, a_star)  + logpdf(back_prop, a)
@@ -144,7 +152,11 @@ function sample_K!(pars, m)
 	u_star = process(p_star, u0, m)
 
 	# Proposal likelihood
-	loglik_star = likelihood(u_star, m)
+	if u_star.t[end] < 26.0
+		loglik_star = -Inf
+	else
+		loglik_star = likelihood(u_star, m)
+	end
 
 	# Computing the MH ratio
 	mh1 = loglik_star + logpdf(K_prior, K_star) + logpdf(back_prop, K)
@@ -179,7 +191,11 @@ function sample_u0!(pars, m)
 	u_star = process(p, u0_star, m)
 
 	# Proposal likelihood
-	loglik_star = likelihood(u_star, m)
+	if u_star.t[end] < 26.0
+		loglik_star = -Inf
+	else
+		loglik_star = likelihood(u_star, m)
+	end
 
 	# Computing the MH ratio
 	mh1 = loglik_star + sum(logpdf.(u0_prior, u0_star)) + sum(logpdf.(back_prop, u0))
@@ -226,7 +242,7 @@ function mcmc(m, pars, nmcmc)
 
 		sample_a!(pars, m)
 
-		# sample_κ!(pars, m)
+		sample_κ!(pars, m)
 
 		sample_K!(pars, m)
 
