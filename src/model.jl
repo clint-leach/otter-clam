@@ -9,8 +9,8 @@
 	N
 	λ
 
-	r_tune
-	r_prior
+	Σ_r_tune
+	log_r_prior
 
 	a_tune
 	a_prior
@@ -28,7 +28,7 @@ end
 @with_kw mutable struct parameters
 
 	u0::Vector{Float64}
-	r::Float64
+	log_r::Vector{Float64}
 	K::Float64
 	a::Float64
 	κ::Float64

@@ -2,10 +2,10 @@
 
 # Rosenzweig-MacArthur model of prey dynamics
 function prey!(du, u, p, t)
-	r, K, a, κ, λ = p
+	log_r, K, a, κ, λ = p
 
 	for i in 1:length(u)
-		du[i] = r * u[i] * (1.0 - u[i] / K) - a * u[i] * λ[i](t) / (u[i] + κ)
+		du[i] = exp(log_r[i]) * u[i] * (1.0 - u[i] / K) - a * u[i] * λ[i](t) / (u[i] + κ)
 	end
 end
 

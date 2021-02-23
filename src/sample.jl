@@ -19,16 +19,15 @@ end
 # Sample prey population growth rate
 function sample_r!(pars, m)
 
-	@unpack r, accept_r, u0, K, a, κ, loglik, u = pars
-	@unpack λ, r_tune, r_prior = m
+	@unpack log_r, accept_r, u0, K, a, κ, loglik, u = pars
+	@unpack λ, Σ_r_tune, log_r_prior = m
 
 	# Proposal
-	forward_prop = truncated(Normal(r, r_tune), 0.0, Inf)
-	r_star = rand(forward_prop)
-	back_prop = truncated(Normal(r_star, r_tune), 0.0, Inf)
+	forward_prop = MvNormal(log_r, Σ_r_tune)
+	log_r_star = rand(forward_prop)
 
 	# Proposal process model
-	p_star =  [r_star, K, a, κ, λ]
+	p_star =  [log_r_star, K, a, κ, λ]
 	u_star = process(p_star, u0, m)
 
 	# Proposal likelihood
@@ -39,8 +38,8 @@ function sample_r!(pars, m)
 	end
 
 	# Computing the MH ratio
-	mh1 = loglik_star + logpdf(r_prior, r_star) + logpdf(back_prop, r)
-	mh2 = loglik + logpdf(r_prior, r) + logpdf(forward_prop, r_star)
+	mh1 = loglik_star + logpdf(log_r_prior, log_r_star)
+	mh2 = loglik + logpdf(log_r_prior, log_r)
 
 	# Accept/reject
 	prob = exp(mh1 - mh2)
@@ -48,18 +47,18 @@ function sample_r!(pars, m)
 		accept_r = 0
 	else
 		accept_r = 1
-		r = r_star
+		log_r = log_r_star
 		u = u_star
 		loglik = loglik_star
 	end
 
-	@pack! pars = r, accept_r, u, loglik
+	@pack! pars = log_r, accept_r, u, loglik
 end
 
 # Sample attack rate
 function sample_a!(pars, m)
 
-	@unpack r, accept_a, u0, K, a, κ, loglik, u = pars
+	@unpack log_r, accept_a, u0, K, a, κ, loglik, u = pars
 	@unpack λ, a_tune, a_prior = m
 
 	# Proposal
@@ -68,7 +67,7 @@ function sample_a!(pars, m)
 	back_prop = truncated(Normal(a_star, a_tune), 0.0, Inf)
 
 	# Proposal process model
-	p_star =  [r, K, a_star, κ, λ]
+	p_star =  [log_r, K, a_star, κ, λ]
 	u_star = process(p_star, u0, m)
 
 	# Proposal likelihood
@@ -99,7 +98,7 @@ end
 # Sample functional response saturation constant
 function sample_κ!(pars, m)
 
-	@unpack r, accept_κ, u0, K, a, κ, loglik, u = pars
+	@unpack log_r, accept_κ, u0, K, a, κ, loglik, u = pars
 	@unpack λ, κ_tune, κ_prior = m
 
 	# Proposal
@@ -108,7 +107,7 @@ function sample_κ!(pars, m)
 	back_prop = truncated(Normal(κ_star, κ_tune), 0.0, Inf)
 
 	# Proposal process model
-	p_star =  [r, K, a, κ_star, λ]
+	p_star =  [log_r, K, a, κ_star, λ]
 	u_star = process(p_star, u0, m)
 
 	# Proposal likelihood
@@ -139,7 +138,7 @@ end
 # Sample functional response saturation constant
 function sample_K!(pars, m)
 
-	@unpack r, accept_K, u0, K, a, κ, loglik, u, u0 = pars
+	@unpack log_r, accept_K, u0, K, a, κ, loglik, u, u0 = pars
 	@unpack λ, K_tune, K_prior = m
 
 	# Proposal
@@ -148,7 +147,7 @@ function sample_K!(pars, m)
 	back_prop = truncated(Normal(K_star, K_tune), 0.0, Inf)
 
 	# Proposal process model
-	p_star =  [r, K_star, a, κ, λ]
+	p_star =  [log_r, K_star, a, κ, λ]
 	u_star = process(p_star, u0, m)
 
 	# Proposal likelihood
@@ -179,7 +178,7 @@ end
 # Sample initial conditions
 function sample_u0!(pars, m)
 
-	@unpack r, accept_u0, u0, K, a, κ, loglik, u = pars
+	@unpack log_r, accept_u0, u0, K, a, κ, loglik, u = pars
 	@unpack λ, u0_tune, u0_prior, N = m
 
 	forward_prop = truncated.(Normal.(u0, u0_tune), 0.0, Inf)
@@ -187,7 +186,7 @@ function sample_u0!(pars, m)
 	back_prop = truncated.(Normal.(u0_star, u0_tune), 0.0, Inf)
 
 	# Proposal process model
-	p =  [r, K, a, κ, λ]
+	p =  [log_r, K, a, κ, λ]
 	u_star = process(p, u0_star, m)
 
 	# Proposal likelihood
@@ -217,11 +216,11 @@ end
 
 function mcmc(m, pars, nmcmc)
 
-	chain = Dict("r" => fill(0.0, nmcmc),
+	chain = Dict("r" => fill(0.0, m.N, nmcmc),
 	             "a" => fill(0.0, nmcmc),
 				 "kappa" => fill(0.0, nmcmc),
 				 "K" => fill(0.0, nmcmc),
-				 "u0" => fill(0.0, N, nmcmc),
+				 "u0" => fill(0.0, m.N, nmcmc),
 	             "accept_r" => fill(0, nmcmc),
 				 "accept_a" => fill(0, nmcmc),
 				 "accept_kappa" => fill(0, nmcmc),
@@ -230,7 +229,7 @@ function mcmc(m, pars, nmcmc)
 				 "u" => fill(0.0, m.N, m.T, nmcmc))
 
 	# Initialize process and likelihood
-	p =  [pars.r, pars.K, pars.a, pars.κ, m.λ]
+	p =  [pars.log_r, pars.K, pars.a, pars.κ, m.λ]
 	pars.u = process(p, pars.u0, m)
 	pars.loglik = likelihood(pars.u, m)
 
@@ -242,7 +241,7 @@ function mcmc(m, pars, nmcmc)
 
 		sample_a!(pars, m)
 
-		sample_κ!(pars, m)
+		# sample_κ!(pars, m)
 
 		sample_K!(pars, m)
 
@@ -250,7 +249,7 @@ function mcmc(m, pars, nmcmc)
 
 		# Saving samples
 
-		chain["r"][i] = pars.r
+		chain["r"][:, i] = pars.log_r
 		chain["a"][i] = pars.a
 		chain["kappa"][i] = pars.κ
 		chain["K"][i] = pars.K
