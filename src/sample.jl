@@ -1,6 +1,6 @@
 # Sampling scripts and helper functions
 
-function likelihood(sol, m)
+function likelihood(sol, σ, m)
 
 	@unpack z, tobs, N = m
 
@@ -8,7 +8,7 @@ function likelihood(sol, m)
 	for i in 1:N
 		for t in 1:length(tobs)
 			if !ismissing(z[t, i])
-				loglik += logpdf(truncated(Normal(sol[i, tobs[t]], 50.0), 0.0, Inf), z[t, i])
+				loglik += logpdf(truncated(Normal(sol[i, tobs[t]], σ), 0.0, Inf), z[t, i])
 			end
 		end
 	end
@@ -16,10 +16,42 @@ function likelihood(sol, m)
 	return loglik
 end
 
+# Sample measurement variance
+function sample_σ!(pars, m)
+
+	@unpack loglik, u, σ, accept_σ = pars
+	@unpack σ_prior, σ_tune = m
+
+	# Proposal
+	forward_prop = truncated(Normal(σ, σ_tune), 0.0, Inf)
+	σ_star = rand(forward_prop)
+	back_prop = truncated(Normal(σ_star, σ_tune), 0.0, Inf)
+
+	# Proposal likelihood
+	loglik_star = likelihood(u, σ_star, m)
+
+	# Computing the MH ratio
+	mh1 = loglik_star + logpdf(σ_prior, σ_star)  + logpdf(back_prop, σ)
+	mh2 = loglik + logpdf(σ_prior, σ) + logpdf(forward_prop, σ_star)
+
+	# Accept/reject
+	prob = exp(mh1 - mh2)
+	if rand() > prob
+		accept_σ = 0
+	else
+		accept_σ = 1
+		σ = σ_star
+		loglik = loglik_star
+	end
+
+	@pack! pars = σ, accept_σ, loglik
+
+end
+
 # Sample prey population growth rate
 function sample_r!(pars, m)
 
-	@unpack log_r, accept_r, u0, K, a, κ, loglik, u = pars
+	@unpack log_r, accept_r, u0, log_K, a, κ, loglik, u, σ = pars
 	@unpack λ, Σ_r_tune, log_r_prior = m
 
 	# Proposal
