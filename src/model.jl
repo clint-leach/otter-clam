@@ -9,8 +9,10 @@
 	N
 	λ
 
-	Σ_r_tune
-	log_r_prior
+	α_r_tune
+	α_r_prior
+	μ_r
+	L_r
 
 	a_tune
 	a_prior
@@ -18,8 +20,10 @@
 	κ_tune
 	κ_prior
 
-	Σ_K_tune
-	log_K_prior
+	α_K_tune
+	α_K_prior
+	μ_K
+	L_K
 
 	u0_tune
 	u0_prior
@@ -32,19 +36,21 @@ end
 
 	u0::Vector{Float64}
 	log_r::Vector{Float64}
+	α_r::Vector{Float64}
 	log_K::Vector{Float64}
+	α_K::Vector{Float64}
 	a::Float64
 	κ::Float64
 	σ::Float64
 
-	u
-	loglik::Float64
+	u::Matrix{Float64}
+	loglik::Vector{Float64}
 
 	accept_r::Int64
 	accept_a::Int64
 	accept_κ::Int64
 	accept_K::Int64
-	accept_u0::Int64
+	accept_u0::Vector{Int64}
 	accept_σ::Int64
 
 end
