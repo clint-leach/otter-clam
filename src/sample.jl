@@ -196,7 +196,7 @@ function sample_K!(pars, m)
 
 	# Proposal process model
 	log_K_star = μ_K + L_K * α_K_star
-	p_star =  DEParams(log_r, log_K_star, a, κ, λ)
+	p_star =  DEparams(log_r, log_K_star, a, κ, λ)
 	u_star = process_all(p_star, u0, m)
 
 	# Proposal likelihood
@@ -238,7 +238,7 @@ function sample_u0!(pars, m)
 		back_prop = truncated(Normal(u0_star, u0_tune), 0.0, Inf)
 
 		# Proposal process model
-		p =  DEparams(log_r[i], log_K[i], a, κ, λ[i])
+		p =  DEparams(log_r[i, :], log_K[i, :], a, κ, λ[i, :])
 		u_star = process_site(p, u0_star, m)
 
 		# Proposal likelihood
