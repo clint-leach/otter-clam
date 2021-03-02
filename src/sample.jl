@@ -75,7 +75,7 @@ function sample_r!(pars, m)
 
 	# Proposal process model
 	log_r_star = μ_r + L_r * α_r_star
-	p_star =  [log_r_star, log_K, a, κ, λ]
+	p_star =  DEparams(log_r_star, log_K, a, κ, λ)
 	u_star = process_all(p_star, u0, m)
 
 	# Proposal likelihood
@@ -116,7 +116,7 @@ function sample_a!(pars, m)
 	back_prop = truncated(Normal(a_star, a_tune), 0.0, Inf)
 
 	# Proposal process model
-	p_star =  [log_r, log_K, a_star, κ, λ]
+	p_star =  DEparams(log_r, log_K, a_star, κ, λ)
 	u_star = process_all(p_star, u0, m)
 
 	# Proposal likelihood
@@ -156,7 +156,7 @@ function sample_κ!(pars, m)
 	back_prop = truncated(Normal(κ_star, κ_tune), 0.0, Inf)
 
 	# Proposal process model
-	p_star =  [log_r, log_K, a, κ_star, λ]
+	p_star =  DEParams(log_r, log_K, a, κ_star, λ)
 	u_star = process_all(p_star, u0, m)
 
 	# Proposal likelihood
@@ -196,7 +196,7 @@ function sample_K!(pars, m)
 
 	# Proposal process model
 	log_K_star = μ_K + L_K * α_K_star
-	p_star =  [log_r, log_K_star, a, κ, λ]
+	p_star =  DEParams(log_r, log_K_star, a, κ, λ)
 	u_star = process_all(p_star, u0, m)
 
 	# Proposal likelihood
@@ -238,7 +238,7 @@ function sample_u0!(pars, m)
 		back_prop = truncated(Normal(u0_star, u0_tune), 0.0, Inf)
 
 		# Proposal process model
-		p =  [log_r[i], log_K[i], a, κ, λ[i]]
+		p =  DEparams(log_r[i], log_K[i], a, κ, λ[i])
 		u_star = process_site(p, u0_star, m)
 
 		# Proposal likelihood
@@ -284,7 +284,7 @@ function mcmc(m, pars, nmcmc)
 				 "u" => fill(0.0, m.T, m.N, nmcmc))
 
 	# Initialize process and likelihood
-	p =  [pars.log_r, pars.log_K, pars.a, pars.κ, m.λ]
+	p =  DEparams(pars.log_r, pars.log_K, pars.a, pars.κ, m.λ)
 	pars.u = process_all(p, pars.u0, m)
 	pars.loglik = likelihood(pars.u, pars.σ, m)
 

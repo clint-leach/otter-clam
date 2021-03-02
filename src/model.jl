@@ -54,3 +54,13 @@ end
 	accept_σ::Int64
 
 end
+
+@with_kw struct DEparams
+
+	log_r::Vector{Float64}
+	log_K::Vector{Float64}
+	a::Float64
+	κ::Float64
+	λ::Array{Interpolations.BSplineInterpolation{Float64,1,Array{Float64,1},BSpline{Linear},Tuple{Base.OneTo{Int64}}},1}
+
+end
