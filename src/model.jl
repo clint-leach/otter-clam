@@ -8,6 +8,8 @@
 	tspan
 	N
 	λ
+	X
+	p
 
 	α_r_tune
 	α_r_prior
@@ -25,8 +27,8 @@
 	μ_K
 	L_K
 
-	u0_tune
-	u0_prior
+	β_tune
+	β_prior
 
 	σ_tune
 	σ_prior
@@ -35,6 +37,7 @@ end
 @with_kw mutable struct parameters
 
 	u0::Vector{Float64}
+	β::Vector{Float64}
 	log_r::Vector{Float64}
 	α_r::Vector{Float64}
 	log_K::Vector{Float64}
@@ -50,6 +53,7 @@ end
 	accept_a::Int64
 	accept_κ::Int64
 	accept_K::Int64
+	accept_β::Int64
 	accept_u0::Vector{Int64}
 	accept_σ::Int64
 

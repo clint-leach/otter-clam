@@ -267,18 +267,62 @@ function sample_u0!(pars, m)
 	@pack! pars = u0, accept_u0, u, loglik
 end
 
+# Sample initial condition regression coefficients
+function sample_β!(pars, m)
+
+	@unpack log_r, accept_β, β, log_K, a, κ, loglik, u, σ, u0 = pars
+	@unpack λ, β_tune, β_prior, N, X = m
+
+	# Proposal
+	forward_prop = MvNormal(β, β_tune)
+	β_star = rand(forward_prop)
+
+	# Proposal process model
+	u0_star = exp.(X * β_star)
+	p = DEparams(log_r, log_K, a, κ, λ)
+	u_star = process_all(p, u0_star, m)
+
+	# Proposal likelihood
+	if size(u_star, 1) < 26
+		loglik_star = fill(-Inf, N)
+	else
+		loglik_star = likelihood(u_star, σ, m)
+	end
+
+	# Computing the MH ratio
+	mh1 = sum(loglik_star) + logpdf(β_prior, β_star)
+	mh2 = sum(loglik) + logpdf(β_prior, β)
+
+	# Accept/reject
+	prob = exp(mh1 - mh2)
+	if rand() > prob
+		accept_β = 0
+	else
+		accept_β = 1
+		β = β_star
+		u = u_star
+		loglik = loglik_star
+		u0 = u0_star
+	end
+
+
+	@pack! pars = u0, accept_β, β, u, loglik
+end
+
 function mcmc(m, pars, nmcmc)
 
 	chain = Dict("r" => fill(0.0, m.N, nmcmc),
 	             "a" => fill(0.0, nmcmc),
 				 "kappa" => fill(0.0, nmcmc),
 				 "K" => fill(0.0, m.N, nmcmc),
+				 "beta" => fill(0.0, m.p, nmcmc),
 				 "u0" => fill(0.0, m.N, nmcmc),
 				 "sigma" => fill(0.0, nmcmc),
 	             "accept_r" => fill(0, nmcmc),
 				 "accept_a" => fill(0, nmcmc),
 				 "accept_kappa" => fill(0, nmcmc),
 				 "accept_K" => fill(0, nmcmc),
+				 "accept_beta" => fill(0, nmcmc),
 				 "accept_u0" => fill(0, m.N, nmcmc),
 				 "accept_sigma" => fill(0, nmcmc),
 				 "u" => fill(0.0, m.T, m.N, nmcmc))
