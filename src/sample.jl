@@ -196,8 +196,9 @@ function sample_K!(pars, m)
 
 	# Proposal process model
 	log_K_star = μ_K + L_K * α_K_star
+	u0_star = exp.(log_K_star)
 	p_star =  DEparams(log_r, log_K_star, a, κ, λ)
-	u_star = process_all(p_star, u0, m)
+	u_star = process_all(p_star, u0_star, m)
 
 	# Proposal likelihood
 	if size(u_star, 1) < 26
@@ -218,11 +219,12 @@ function sample_K!(pars, m)
 		accept_K = 1
 		log_K = log_K_star
 		α_K = α_K_star
+		u0 = u0_star
 		u = u_star
 		loglik = loglik_star
 	end
 
-	@pack! pars = log_K, accept_K, α_K, u, loglik
+	@pack! pars = log_K, accept_K, α_K, u0, u, loglik
 end
 
 # Sample initial conditions
@@ -329,7 +331,7 @@ function mcmc(m, pars, nmcmc)
 
 	# Initialize process and likelihood
 	p =  DEparams(pars.log_r, pars.log_K, pars.a, pars.κ, m.λ)
-	pars.u = process_all(p, pars.u0, m)
+	pars.u = process_all(p, exp.(pars.log_K), m)
 	pars.loglik = likelihood(pars.u, pars.σ, m)
 
 	@progress for i in 1:nmcmc
@@ -344,7 +346,7 @@ function mcmc(m, pars, nmcmc)
 
 		sample_K!(pars, m)
 
-		sample_u0!(pars, m)
+		# sample_u0!(pars, m)
 
 		sample_σ!(pars, m)
 
