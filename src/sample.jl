@@ -66,15 +66,15 @@ end
 # Sample prey population growth rate
 function sample_r!(pars, m)
 
-	@unpack log_r, α_r, accept_r, u0, log_K, a, κ, loglik, u, σ = pars
-	@unpack λ, α_r_tune, α_r_prior, L_r, μ_r = m
+	@unpack β_r, log_r, α_r, accept_r, u0, log_K, a, κ, loglik, u, σ = pars
+	@unpack λ, α_r_tune, α_r_prior, L_r, X = m
 
 	# Proposal
 	forward_prop = MvNormal(α_r, α_r_tune)
 	α_r_star = rand(forward_prop)
 
 	# Proposal process model
-	log_r_star = μ_r + L_r * α_r_star
+	log_r_star = X * β_r + L_r * α_r_star
 	p_star =  DEparams(log_r_star, log_K, a, κ, λ)
 	u_star = process_all(p_star, u0, m)
 
@@ -187,15 +187,15 @@ end
 # Sample functional response saturation constant
 function sample_K!(pars, m)
 
-	@unpack log_r, accept_K, u0, log_K, α_K, a, κ, loglik, u, σ = pars
-	@unpack λ, α_K_tune, α_K_prior, μ_K, L_K = m
+	@unpack β_K, log_r, accept_K, u0, log_K, α_K, a, κ, loglik, u, σ = pars
+	@unpack λ, α_K_tune, α_K_prior, L_K, X = m
 
 	# Proposal
 	forward_prop = MvNormal(α_K, α_K_tune)
 	α_K_star = rand(forward_prop)
 
 	# Proposal process model
-	log_K_star = μ_K + L_K * α_K_star
+	log_K_star = X * β_K + L_K * α_K_star
 	u0_star = exp.(log_K_star)
 	p_star =  DEparams(log_r, log_K_star, a, κ, λ)
 	u_star = process_all(p_star, u0_star, m)
@@ -311,15 +311,52 @@ function sample_β!(pars, m)
 	@pack! pars = u0, accept_β, β, u, loglik
 end
 
+# Conjugate Gibbs updates of regression coefficients on r
+function sample_β_r!(pars, m)
+
+	@unpack log_r = pars
+	@unpack X, Ω_r, Ω_β_r, μ_β_r = m
+
+	# Sample β_r
+	A = Symmetric(X' * Ω_r * X + Ω_β_r)
+	A_inv = inv(A)
+
+	b = X' * Ω_r * log_r + Ω_β_r * μ_β_r
+
+	β_r = rand(MvNormal(A_inv * b, A_inv))
+
+	@pack! pars = β_r
+
+end
+
+# Conjugate Gibbs updates of regression coefficients on K
+function sample_β_K!(pars, m)
+
+	@unpack log_K = pars
+	@unpack X, Ω_K, Ω_β_K, μ_β_K = m
+
+	# Sample β_r
+	A = Symmetric(X' * Ω_K * X + Ω_β_K)
+	A_inv = inv(A)
+
+	b = X' * Ω_K * log_K + Ω_β_K * μ_β_K
+
+	β_K = rand(MvNormal(A_inv * b, A_inv))
+
+	@pack! pars = β_K
+
+end
+
 function mcmc(m, pars, nmcmc)
 
 	chain = Dict("r" => fill(0.0, m.N, nmcmc),
 	             "a" => fill(0.0, nmcmc),
 				 "kappa" => fill(0.0, nmcmc),
 				 "K" => fill(0.0, m.N, nmcmc),
-				 "beta" => fill(0.0, m.p, nmcmc),
 				 "u0" => fill(0.0, m.N, nmcmc),
 				 "sigma" => fill(0.0, nmcmc),
+				 "beta_r" => fill(0.0, m.p, nmcmc),
+				 "beta_K" => fill(0.0, m.p, nmcmc),
 	             "accept_r" => fill(0, nmcmc),
 				 "accept_a" => fill(0, nmcmc),
 				 "accept_kappa" => fill(0, nmcmc),
@@ -334,11 +371,9 @@ function mcmc(m, pars, nmcmc)
 	pars.u = process_all(p, exp.(pars.log_K), m)
 	pars.loglik = likelihood(pars.u, pars.σ, m)
 
-	@progress for i in 1:nmcmc
+	for i in 1:nmcmc
 
 		# Sampling
-
-		sample_r!(pars, m)
 
 		sample_a!(pars, m)
 
@@ -346,7 +381,11 @@ function mcmc(m, pars, nmcmc)
 
 		sample_K!(pars, m)
 
-		# sample_u0!(pars, m)
+		sample_β_K!(pars, m)
+
+		sample_r!(pars, m)
+
+		sample_β_r!(pars, m)
 
 		sample_σ!(pars, m)
 
@@ -358,6 +397,8 @@ function mcmc(m, pars, nmcmc)
 		chain["K"][:, i] = pars.log_K
 		chain["u0"][:, i] = pars.u0
 		chain["sigma"][i] = pars.σ
+		chain["beta_r"][:, i] = pars.β_r
+		chain["beta_K"][:, i] = pars.β_K
 
 		chain["accept_r"][i] = pars.accept_r
 		chain["accept_a"][i] = pars.accept_a

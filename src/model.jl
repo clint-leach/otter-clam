@@ -13,8 +13,9 @@
 
 	α_r_tune
 	α_r_prior
-	μ_r
 	L_r
+	Σ_r
+	Ω_r
 
 	a_tune
 	a_prior
@@ -24,11 +25,15 @@
 
 	α_K_tune
 	α_K_prior
-	μ_K
 	L_K
+	Σ_K
+	Ω_K
 
-	β_tune
-	β_prior
+	Ω_β_r
+	μ_β_r
+
+	Ω_β_K
+	μ_β_K
 
 	σ_tune
 	σ_prior
@@ -37,11 +42,15 @@ end
 @with_kw mutable struct parameters
 
 	u0::Vector{Float64}
-	β::Vector{Float64}
+
 	log_r::Vector{Float64}
 	α_r::Vector{Float64}
+	β_r::Vector{Float64}
+
 	log_K::Vector{Float64}
 	α_K::Vector{Float64}
+	β_K::Vector{Float64}
+
 	a::Float64
 	κ::Float64
 	σ::Float64
