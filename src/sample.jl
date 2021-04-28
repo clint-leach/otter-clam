@@ -8,7 +8,7 @@ function likelihood(u, σ, m)
 	for i in 1:N
 		for t in 1:length(tobs)
 			if !ismissing(z[t, i])
-				loglik[i] += logpdf(truncated(Normal(u[tobs[t], i], σ), 0.0, Inf), z[tobs[t], i])
+				loglik[i] += logpdf(truncated(Normal(exp(u[tobs[t], i]), σ), 0.0, Inf), z[tobs[t], i])
 			end
 		end
 	end
