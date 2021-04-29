@@ -66,15 +66,14 @@ end
 # Sample prey population growth rate
 function sample_r!(pars, m)
 
-	@unpack β_r, log_r, α_r, accept_r, u0, log_K, a, κ, loglik, u, σ = pars
-	@unpack λ, α_r_tune, α_r_prior, L_r, X = m
+	@unpack log_r, accept_r, u0, log_K, a, κ, loglik, u, σ = pars
+	@unpack λ, log_r_prior, r_tune = m
 
 	# Proposal
-	forward_prop = MvNormal(α_r, α_r_tune)
-	α_r_star = rand(forward_prop)
+	forward_prop = MvNormal(log_r, r_tune)
+	log_r_star = rand(forward_prop)
 
 	# Proposal process model
-	log_r_star = X * β_r + L_r * α_r_star
 	p_star =  DEparams(log_r_star, log_K, a, κ, λ)
 	u_star = process_all(p_star, u0, m)
 
@@ -86,8 +85,8 @@ function sample_r!(pars, m)
 	end
 
 	# Computing the MH ratio
-	mh1 = sum(loglik_star) + logpdf(α_r_prior, α_r_star)
-	mh2 = sum(loglik) + logpdf(α_r_prior, α_r)
+	mh1 = sum(loglik_star) + logpdf(log_r_prior, log_r_star)
+	mh2 = sum(loglik) + logpdf(log_r_prior, log_r)
 
 	# Accept/reject
 	prob = exp(mh1 - mh2)
@@ -96,12 +95,11 @@ function sample_r!(pars, m)
 	else
 		accept_r = 1
 		log_r = log_r_star
-		α_r = α_r_star
 		u = u_star
 		loglik = loglik_star
 	end
 
-	@pack! pars = log_r, accept_r, α_r, u, loglik
+	@pack! pars = log_r, accept_r, u, loglik
 end
 
 # Sample attack rate
@@ -187,16 +185,15 @@ end
 # Sample functional response saturation constant
 function sample_K!(pars, m)
 
-	@unpack β_K, log_r, accept_K, u0, log_K, α_K, a, κ, loglik, u, σ = pars
-	@unpack λ, α_K_tune, α_K_prior, L_K, X = m
+	@unpack log_r, accept_K, u0, log_K, a, κ, loglik, u, σ = pars
+	@unpack λ, log_K_prior, K_tune = m
 
 	# Proposal
-	forward_prop = MvNormal(α_K, α_K_tune)
-	α_K_star = rand(forward_prop)
+	forward_prop = MvNormal(log_K, K_tune)
+	log_K_star = rand(forward_prop)
 
 	# Proposal process model
-	log_K_star = X * β_K + L_K * α_K_star
-	u0_star = exp.(log_K_star)
+	u0_star = log_K_star
 	p_star =  DEparams(log_r, log_K_star, a, κ, λ)
 	u_star = process_all(p_star, u0_star, m)
 
@@ -208,8 +205,8 @@ function sample_K!(pars, m)
 	end
 
 	# Computing the MH ratio
-	mh1 = sum(loglik_star) + logpdf(α_K_prior, α_K_star)
-	mh2 = sum(loglik) + logpdf(α_K_prior, α_K)
+	mh1 = sum(loglik_star) + logpdf(log_K_prior, log_K_star)
+	mh2 = sum(loglik) + logpdf(log_K_prior, log_K)
 
 	# Accept/reject
 	prob = exp(mh1 - mh2)
@@ -218,13 +215,12 @@ function sample_K!(pars, m)
 	else
 		accept_K = 1
 		log_K = log_K_star
-		α_K = α_K_star
 		u0 = u0_star
 		u = u_star
 		loglik = loglik_star
 	end
 
-	@pack! pars = log_K, accept_K, α_K, u0, u, loglik
+	@pack! pars = log_K, accept_K, u0, u, loglik
 end
 
 # Sample initial conditions
