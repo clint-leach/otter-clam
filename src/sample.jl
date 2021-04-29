@@ -363,11 +363,16 @@ function mcmc(m, pars, nmcmc)
 				 "u" => fill(0.0, m.T, m.N, nmcmc))
 
 	# Initialize process and likelihood
+	pars.u0 = pars.log_K
 	p =  DEparams(pars.log_r, pars.log_K, pars.a, pars.κ, m.λ)
-	pars.u = process_all(p, exp.(pars.log_K), m)
+	pars.u = process_all(p, pars.u0, m)
 	pars.loglik = likelihood(pars.u, pars.σ, m)
 
 	for i in 1:nmcmc
+
+		if i % 100 == 0
+			@show i
+		end
 
 		# Sampling
 
