@@ -2,13 +2,14 @@
 
 function likelihood(u, σ, m)
 
-	@unpack z, tobs, N = m
+	@unpack z, T, N = m
 
 	loglik = fill(0.0, N)
+
 	for i in 1:N
-		for t in 1:length(tobs)
+		for t in 1:T
 			if !ismissing(z[t, i])
-				loglik[i] += logpdf(truncated(Normal(exp(u[tobs[t], i]), σ), 0.0, Inf), z[tobs[t], i])
+				loglik[i] += logpdf(truncated(Normal(exp(u[t, i]), σ), 0.0, Inf), z[t, i])
 			end
 		end
 	end
