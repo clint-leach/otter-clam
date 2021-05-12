@@ -155,11 +155,11 @@ function sample_κ!(pars, m)
 	back_prop = truncated(Normal(κ_star, κ_tune), 0.0, Inf)
 
 	# Proposal process model
-	p_star =  DEParams(log_r, log_K, a, κ_star, λ)
+	p_star =  DEparams(log_r, log_K, a, κ_star, λ)
 	u_star = process_all(p_star, u0, m)
 
 	# Proposal likelihood
-	if size(ustar, 1) < 26
+	if size(u_star, 1) < 26
 		loglik_star = fill(-Inf, N)
 	else
 		loglik_star = likelihood(u_star, σ, m)
