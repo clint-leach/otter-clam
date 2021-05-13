@@ -13,7 +13,7 @@ function process_site(p, u0, m)
 
 	prob = ODEProblem(prey!, [u0], tspan, p)
 
-	sol = solve(prob, Tsit5(), saveat=1.0)
+	sol = solve(prob, Tsit5(), abstol = 1e-6, reltol = 1e-4, saveat=1.0)
 
 	return sol[1, :]
 
@@ -21,10 +21,14 @@ end
 
 # Rosenzweig-MacArthur model of multi-site prey dynamics
 function prey_all!(du, u, p, t)
-	@unpack log_r, log_K, a, κ, λ = p
+	@unpack r, K, a, κ, λ = p
 
 	for i in 1:length(u)
-		du[i] = exp(log_r[i]) * (1.0 - exp(u[i] - log_K[i])) - a * λ[i](t) / (exp(u[i]) + κ)
+		if K[i] == 0.0
+			du[i] = 0.0
+		else
+			du[i] = r[i] * u[i] * (1.0 - u[i] / K[i]) - a * λ[i](t) * u[i] / (u[i] + κ)
+		end
 	end
 
 end
@@ -32,12 +36,12 @@ end
 # Solving ODE given parameters and λ
 function process_all(p, u0, m)
 
-	@unpack tspan, λ, N = m
+	@unpack tspan = m
 
 	prob = ODEProblem(prey_all!, u0, tspan, p)
 
-	sol = solve(prob, Tsit5(), saveat=1.0)
+	sol = solve(prob, Tsit5(), abstol = 1e-6, reltol = 1e-4, saveat=1.0)
 
-	return sol[1:m.N, :]'
+	return sol[:, :]'
 
 end

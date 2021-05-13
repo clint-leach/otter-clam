@@ -1,6 +1,6 @@
 # Sampling scripts and helper functions
 
-function likelihood(u, σ, m)
+function likelihood(u, σ, η_K, m)
 
 	@unpack z, T, N = m
 
@@ -9,23 +9,12 @@ function likelihood(u, σ, m)
 	for i in 1:N
 		for t in 1:T
 			if !ismissing(z[t, i])
-				loglik[i] += logpdf(truncated(Normal(exp(u[t, i]), σ), 0.0, Inf), z[t, i])
+				if η_K[i] > 0
+					loglik[i] += logpdf(truncated(Normal(u[t, i], σ), 0.0, Inf), z[t, i])
+				else
+					loglik[i] += z[t, i] > 0 ? -Inf : 0
+				end
 			end
-		end
-	end
-
-	return loglik
-end
-
-function likelihood(u, σ, m, i)
-
-	@unpack z, tobs, N = m
-
-	loglik = 0.0
-
-	for t in 1:length(tobs)
-		if !ismissing(z[t, i])
-			loglik += logpdf(truncated(Normal(u[tobs[t]], σ), 0.0, Inf), z[tobs[t], i])
 		end
 	end
 
@@ -35,7 +24,7 @@ end
 # Sample measurement variance
 function sample_σ!(pars, m)
 
-	@unpack loglik, u, σ, accept_σ = pars
+	@unpack loglik, u, σ, accept_σ, η_K = pars
 	@unpack σ_prior, σ_tune = m
 
 	# Proposal
@@ -44,7 +33,7 @@ function sample_σ!(pars, m)
 	back_prop = truncated(Normal(σ_star, σ_tune), 0.0, Inf)
 
 	# Proposal likelihood
-	loglik_star = likelihood(u, σ_star, m)
+	loglik_star = likelihood(u, σ_star, η_K, m)
 
 	# Computing the MH ratio
 	mh1 = sum(loglik_star) + logpdf(σ_prior, σ_star)  + logpdf(back_prop, σ)
@@ -67,22 +56,24 @@ end
 # Sample prey population growth rate
 function sample_r!(pars, m)
 
-	@unpack log_r, accept_r, u0, log_K, a, κ, loglik, u, σ = pars
-	@unpack λ, log_r_prior, r_tune = m
+	@unpack log_r, r, accept_r, u0, η_K, K, a, κ, loglik, u, σ = pars
+	@unpack λ, log_r_prior, r_tune, N = m
 
 	# Proposal
 	forward_prop = MvNormal(log_r, r_tune)
 	log_r_star = rand(forward_prop)
+	r_star = [η_K[i] > 0 ? exp(log_r_star[i]) : 0.0 for i in 1:N]
+	# r_star = exp.(log_r_star)
 
 	# Proposal process model
-	p_star =  DEparams(log_r_star, log_K, a, κ, λ)
+	p_star =  DEparams(r_star, K, a, κ, λ)
 	u_star = process_all(p_star, u0, m)
 
 	# Proposal likelihood
 	if size(u_star, 1) < 26
 		loglik_star = fill(-Inf, N)
 	else
-		loglik_star = likelihood(u_star, σ, m)
+		loglik_star = likelihood(u_star, σ, η_K, m)
 	end
 
 	# Computing the MH ratio
@@ -96,17 +87,18 @@ function sample_r!(pars, m)
 	else
 		accept_r = 1
 		log_r = log_r_star
+		r = r_star
 		u = u_star
 		loglik = loglik_star
 	end
 
-	@pack! pars = log_r, accept_r, u, loglik
+	@pack! pars = log_r, r, accept_r, u, loglik
 end
 
 # Sample attack rate
 function sample_a!(pars, m)
 
-	@unpack log_r, accept_a, u0, log_K, a, κ, loglik, u, σ = pars
+	@unpack r, accept_a, u0, η_K, K, a, κ, loglik, u, σ = pars
 	@unpack λ, a_tune, a_prior = m
 
 	# Proposal
@@ -115,14 +107,14 @@ function sample_a!(pars, m)
 	back_prop = truncated(Normal(a_star, a_tune), 0.0, Inf)
 
 	# Proposal process model
-	p_star =  DEparams(log_r, log_K, a_star, κ, λ)
+	p_star =  DEparams(r, K, a_star, κ, λ)
 	u_star = process_all(p_star, u0, m)
 
 	# Proposal likelihood
 	if size(u_star, 1) < 26
 		loglik_star = fill(-Inf, N)
 	else
-		loglik_star = likelihood(u_star, σ, m)
+		loglik_star = likelihood(u_star, σ, η_K, m)
 	end
 
 	# Computing the MH ratio
@@ -146,7 +138,7 @@ end
 # Sample functional response saturation constant
 function sample_κ!(pars, m)
 
-	@unpack log_r, accept_κ, u0, log_K, a, κ, loglik, u, σ = pars
+	@unpack r, accept_κ, u0, η_K, K, a, κ, loglik, u, σ = pars
 	@unpack λ, κ_tune, κ_prior = m
 
 	# Proposal
@@ -155,14 +147,14 @@ function sample_κ!(pars, m)
 	back_prop = truncated(Normal(κ_star, κ_tune), 0.0, Inf)
 
 	# Proposal process model
-	p_star =  DEparams(log_r, log_K, a, κ_star, λ)
+	p_star =  DEparams(r, K, a, κ_star, λ)
 	u_star = process_all(p_star, u0, m)
 
 	# Proposal likelihood
 	if size(u_star, 1) < 26
 		loglik_star = fill(-Inf, N)
 	else
-		loglik_star = likelihood(u_star, σ, m)
+		loglik_star = likelihood(u_star, σ, η_K, m)
 	end
 
 	# Computing the MH ratio
@@ -186,28 +178,30 @@ end
 # Sample functional response saturation constant
 function sample_K!(pars, m)
 
-	@unpack log_r, accept_K, u0, log_K, a, κ, loglik, u, σ = pars
-	@unpack λ, log_K_prior, K_tune = m
+	@unpack r, log_r, accept_K, u0, η_K, K, a, κ, loglik, u, σ = pars
+	@unpack λ, η_K_prior, K_tune, N = m
 
 	# Proposal
-	forward_prop = MvNormal(log_K, K_tune)
-	log_K_star = rand(forward_prop)
+	forward_prop = MvNormal(η_K, K_tune)
+	η_K_star = rand(forward_prop)
+	K_star = [η_K_star[i] > 0 ? η_K_star[i] : 0.0 for i in 1:N]
+	r_star = [η_K_star[i] > 0 ? exp(log_r[i]) : 0.0 for i in 1:N]
 
 	# Proposal process model
-	u0_star = log_K_star
-	p_star =  DEparams(log_r, log_K_star, a, κ, λ)
+	u0_star = K_star
+	p_star =  DEparams(r_star, K_star, a, κ, λ)
 	u_star = process_all(p_star, u0_star, m)
 
 	# Proposal likelihood
 	if size(u_star, 1) < 26
 		loglik_star = fill(-Inf, N)
 	else
-		loglik_star = likelihood(u_star, σ, m)
+		loglik_star = likelihood(u_star, σ, η_K_star, m)
 	end
 
 	# Computing the MH ratio
-	mh1 = sum(loglik_star) + logpdf(log_K_prior, log_K_star)
-	mh2 = sum(loglik) + logpdf(log_K_prior, log_K)
+	mh1 = sum(loglik_star) + logpdf(η_K_prior, η_K_star)
+	mh2 = sum(loglik) + logpdf(η_K_prior, η_K)
 
 	# Accept/reject
 	prob = exp(mh1 - mh2)
@@ -215,13 +209,15 @@ function sample_K!(pars, m)
 		accept_K = 0
 	else
 		accept_K = 1
-		log_K = log_K_star
+		η_K = η_K_star
+		K = K_star
+		r = r_star
 		u0 = u0_star
 		u = u_star
 		loglik = loglik_star
 	end
 
-	@pack! pars = log_K, accept_K, u0, u, loglik
+	@pack! pars = η_K, K, r, accept_K, u0, u, loglik
 end
 
 # Sample initial conditions
@@ -329,14 +325,14 @@ end
 # Conjugate Gibbs updates of regression coefficients on K
 function sample_β_K!(pars, m)
 
-	@unpack log_K = pars
+	@unpack η_K = pars
 	@unpack X, Ω_K, Ω_β_K, μ_β_K = m
 
 	# Sample β_r
 	A = Symmetric(X' * Ω_K * X + Ω_β_K)
 	A_inv = inv(A)
 
-	b = X' * Ω_K * log_K + Ω_β_K * μ_β_K
+	b = X' * Ω_K * η_K + Ω_β_K * μ_β_K
 
 	β_K = rand(MvNormal(A_inv * b, A_inv))
 
@@ -347,9 +343,11 @@ end
 function mcmc(m, pars, nmcmc)
 
 	chain = Dict("r" => fill(0.0, m.N, nmcmc),
+				 "log_r"=> fill(0.0, m.N, nmcmc),
 	             "a" => fill(0.0, nmcmc),
 				 "kappa" => fill(0.0, nmcmc),
 				 "K" => fill(0.0, m.N, nmcmc),
+				 "eta_K" => fill(0.0, m.N, nmcmc),
 				 "u0" => fill(0.0, m.N, nmcmc),
 				 "sigma" => fill(0.0, nmcmc),
 				 "beta_r" => fill(0.0, m.p, nmcmc),
@@ -364,10 +362,9 @@ function mcmc(m, pars, nmcmc)
 				 "u" => fill(0.0, m.T, m.N, nmcmc))
 
 	# Initialize process and likelihood
-	pars.u0 = pars.log_K
-	p =  DEparams(pars.log_r, pars.log_K, pars.a, pars.κ, m.λ)
-	pars.u = process_all(p, pars.u0, m)
-	pars.loglik = likelihood(pars.u, pars.σ, m)
+	p =  DEparams(pars.r, pars.K, pars.a, pars.κ, m.λ)
+	pars.u = process_all(p, pars.K, m)
+	pars.loglik = likelihood(pars.u, pars.σ, pars.η_K, m)
 
 	for i in 1:nmcmc
 
@@ -393,10 +390,12 @@ function mcmc(m, pars, nmcmc)
 
 		# Saving samples
 
-		chain["r"][:, i] = pars.log_r
+		chain["r"][:, i] = pars.r
+		chain["log_r"][:, i] = pars.log_r
 		chain["a"][i] = pars.a
 		chain["kappa"][i] = pars.κ
-		chain["K"][:, i] = pars.log_K
+		chain["K"][:, i] = pars.K
+		chain["eta_K"][:, i] = pars.η_K
 		chain["u0"][:, i] = pars.u0
 		chain["sigma"][i] = pars.σ
 		chain["beta_r"][:, i] = pars.β_r

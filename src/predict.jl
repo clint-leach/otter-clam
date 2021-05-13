@@ -19,27 +19,30 @@ function predict(chain, m)
 
         β_r = chain["beta_r"][:, i]
         β_K = chain["beta_K"][:, i]
-        log_r = chain["r"][:, i]
-        log_K = chain["K"][:, i]
+        log_r = chain["log_r"][:, i]
+        η_K = chain["η_K"][:, i]
         a = chain["a"][i]
         κ = chain["kappa"][i]
 
         # Compute μ_pred for r and K
         μ_pred_r = X_all * β_r + Σuo_r * Ω_r * (log_r - X * β_r)
-        μ_pred_K = X_all * β_K + Σuo_K * Ω_K * (log_K - X * β_K)
+        μ_pred_K = X_all * β_K + Σuo_K * Ω_K * (η_K - X * β_K)
 
         # Draw r and K from predictive distributions
         log_r_pred = rand(MvNormal(μ_pred_r, Σ_pred_r))
-        log_K_pred = rand(MvNormal(μ_pred_K, Σ_pred_K))
+        η_K_pred = rand(MvNormal(μ_pred_K, Σ_pred_K))
+
+        K = [η_K_pred[i] > 0 ? η_K_pred[i] : 0.0 for i in 1:N]
+        r = [η_K_pred[i] > 0 ? exp(log_r_pred[i]) : 0.0 for i in 1:N]
 
         # Run process model at every site
-        u0 = log_K_pred
-        p =  DEparams(log_r_pred, log_K_pred, a, κ, λ_all)
+        u0 = K
+        p =  DEparams(r, K, a, κ, λ_all)
         u = process_all(p, u0, m)
 
         # Return r and K vectors and U matrix
-        r_pred[:, i] = log_r_pred
-        K_pred[:, i] = log_K_pred
+        r_pred[:, i] = r
+        K_pred[:, i] = K
         u_pred[:, :, i] = u
 
     end
