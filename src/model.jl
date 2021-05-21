@@ -12,6 +12,9 @@
 	p = size(X, 2)
 
 	# Scalar priors
+	K_tune
+	K_prior
+
 	a_tune
 	a_prior
 
@@ -37,47 +40,46 @@
 	Ω_r = inv(Σ_r)
 	A_r = Symmetric(Ω_r - Ω_r * X * inv(X' * Ω_r * X + Ω_β_r) * X' * Ω_r)
 	b_r = μ_β_r' * Ω_β_r * inv(X' * Ω_r * X + Ω_β_r) * X' * Ω_r
-	log_r_prior = MvNormal(inv(A_r) * b_r', inv(A_r))
+	η_r_prior = MvNormal(inv(A_r) * b_r', inv(A_r))
 
 	r_tune
 
-	# K regression priors
-	Ω_β_K
-	μ_β_K
+	# u0 regression priors
+	Ω_β_0
+	μ_β_0
 
 	# K spatial priors
-	σ_K
-	ρ_K
-	Σ_K = PDMat(σ_K ^ 2 * exp.(-0.5 * (Doo ./ ρ_K)))
-	Ω_K = inv(Σ_K)
-	A_K = Symmetric(Ω_K - Ω_K * X * inv(X' * Ω_K * X + Ω_β_K) * X' * Ω_K)
-	b_K = μ_β_K' * Ω_β_K * inv(X' * Ω_K * X + Ω_β_K) * X' * Ω_K
-	η_K_prior = MvNormal(inv(A_K) * b_K', inv(A_K))
+	σ_0
+	ρ_0
+	Σ_0 = PDMat(σ_0 ^ 2 * exp.(-0.5 * (Doo ./ ρ_0)))
+	Ω_0 = inv(Σ_0)
+	A_0 = Symmetric(Ω_0 - Ω_0 * X * inv(X' * Ω_0 * X + Ω_β_0) * X' * Ω_0)
+	b_0 = μ_β_0' * Ω_β_0 * inv(X' * Ω_0 * X + Ω_β_0) * X' * Ω_0
+	η_0_prior = MvNormal(inv(A_0) * b_0', inv(A_0))
 
-	K_tune
+	u0_tune
 	
 	# Prediction components
 	X_all
 	λ_all
 	Σuo_r = σ_r ^ 2 * exp.(-0.5 * (Duo ./ ρ_r))
 	Σuu_r = PDMat(σ_r ^ 2 * exp.(-0.5 * (Duu ./ ρ_r)))
-	Σuo_K = σ_K ^ 2 * exp.(-0.5 * (Duo ./ ρ_K))
-	Σuu_K = PDMat(σ_K ^ 2 * exp.(-0.5 * (Duu ./ ρ_K)))
+	Σuo_0 = σ_0 ^ 2 * exp.(-0.5 * (Duo ./ ρ_0))
+	Σuu_0 = PDMat(σ_0 ^ 2 * exp.(-0.5 * (Duu ./ ρ_0)))
 
 end
 
 @with_kw mutable struct parameters
 
 	u0::Vector{Float64}
+	η_0::Vector{Float64}
+	β_0::Vector{Float64}
 
-	log_r::Vector{Float64}
 	r::Vector{Float64}
+	η_r::Vector{Float64}
 	β_r::Vector{Float64}
 
-	η_K::Vector{Float64}
-	K::Vector{Float64}
-	β_K::Vector{Float64}
-
+	K::Float64
 	a::Float64
 	κ::Float64
 	σ::Float64
@@ -90,7 +92,7 @@ end
 	accept_κ::Int64
 	accept_K::Int64
 	accept_β::Int64
-	accept_u0::Vector{Int64}
+	accept_u0::Int64
 	accept_σ::Int64
 
 end
@@ -98,9 +100,9 @@ end
 @with_kw struct DEparams
 
 	r::Vector{Float64}
-	K::Vector{Float64}
 	a::Float64
 	κ::Float64
+	K::Float64
 	λ::Array{Interpolations.BSplineInterpolation{Float64,1,Array{Float64,1},BSpline{Linear},Tuple{Base.OneTo{Int64}}},1}
 
 end

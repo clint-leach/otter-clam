@@ -21,14 +21,10 @@ end
 
 # Rosenzweig-MacArthur model of multi-site prey dynamics
 function prey_all!(du, u, p, t)
-	@unpack r, K, a, κ, λ = p
+	@unpack r, a, κ, K, λ = p
 
 	for i in 1:length(u)
-		if K[i] == 0.0
-			du[i] = 0.0
-		else
-			du[i] = r[i] * u[i] * (1.0 - u[i] / K[i]) - a * λ[i](t) * u[i] / (u[i] + κ)
-		end
+		du[i] = r[i] * u[i] * (1.0 - u[i] / K) - a * λ[i](t) * u[i] / (u[i] + κ)
 	end
 
 end
