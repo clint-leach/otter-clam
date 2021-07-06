@@ -72,11 +72,11 @@ end
 @with_kw mutable struct parameters
 
 	u0::Vector{Float64}
-	η_0::Vector{Float64}
+	η_0::Vector{Float64} = log.(u0)
 	β_0::Vector{Float64}
 
 	r::Vector{Float64}
-	η_r::Vector{Float64}
+	η_r::Vector{Float64} = log.(r)
 	β_r::Vector{Float64}
 
 	K::Float64
@@ -87,13 +87,13 @@ end
 	u::Matrix{Float64}
 	loglik::Vector{Float64}
 
-	accept_r::Int64
-	accept_a::Int64
-	accept_κ::Int64
-	accept_K::Int64
-	accept_β::Int64
-	accept_u0::Int64
-	accept_σ::Int64
+	accept_r::Int64 = 0
+	accept_a::Int64 = 0
+	accept_κ::Int64 = 0
+	accept_K::Int64 = 0
+	accept_β::Int64 = 0
+	accept_u0::Int64 = 0
+	accept_σ::Int64 = 0
 
 end
 
