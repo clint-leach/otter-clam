@@ -1,6 +1,6 @@
 function predict(chain, iters, m)
 
-    @unpack K, X_all, X, Σuo_r, Ω_r, Σuu_r, Σuo_K, Ω_K, Σuu_K, λ_all, T = m
+    @unpack X_all, X, Σuo_r, Ω_r, Σuu_r, Σuo_0, Ω_0, Σuu_0, λ_all, T = m
 
     # nmcmc = length(chain["sigma"])
     nmcmc = length(iters)
@@ -8,11 +8,10 @@ function predict(chain, iters, m)
 
     # Building storage arrays
     r_pred = fill(0.0, npred, nmcmc)
-    K_pred = fill(0.0, npred, nmcmc)
     u_pred = fill(0.0, T, npred, nmcmc)
 
     Σ_pred_r = PDMat(Symmetric(Σuu_r - Σuo_r * Ω_r * Σuo_r'))
-    Σ_pred_K = PDMat(Symmetric(Σuu_K - Σuo_K * Ω_K * Σuo_K'))
+    Σ_pred_0 = PDMat(Symmetric(Σuu_0 - Σuo_0 * Ω_0 * Σuo_0'))
 
     for i in 1:nmcmc
 
@@ -28,7 +27,7 @@ function predict(chain, iters, m)
 
         # Compute μ_pred for r and K
         μ_pred_r = X_all * β_r + Σuo_r * Ω_r * (η_r - X * β_r)
-        μ_pred_0 = X_all * β_0 + Σuo_K * Ω_K * (η_0 - X * β_0)
+        μ_pred_0 = X_all * β_0 + Σuo_0 * Ω_0 * (η_0 - X * β_0)
 
         # Draw r and K from predictive distributions
         η_r_pred = rand(MvNormal(μ_pred_r, Σ_pred_r))
@@ -43,13 +42,11 @@ function predict(chain, iters, m)
 
         # Return r and K vectors and U matrix
         r_pred[:, i] = r
-        K_pred[:, i] = u0
         u_pred[:, :, i] = u
 
     end
 
     preds = Dict("r" => r_pred,
-                 "K" => K_pred,
                  "u" => u_pred)
 
     return preds
