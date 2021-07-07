@@ -103,6 +103,6 @@ end
 	a::Float64
 	κ::Float64
 	K::Float64
-	λ::Array{Interpolations.BSplineInterpolation{Float64,1,Array{Float64,1},BSpline{Linear},Tuple{Base.OneTo{Int64}}},1}
+	λ::Vector{Interpolations.BSplineInterpolation{Float64, 1, Vector{Float64}, BSpline{Linear{Throw{OnGrid}}}, Tuple{Base.OneTo{Int64}}}} 
 
 end
