@@ -221,8 +221,8 @@ function sample_u0!(pars, m)
 	u0_star = exp.(η_0_star)
 
 	# Proposal process model
-	p_star =  DEparams(r, a, κ, K, λ)
-	u_star = process_all(p_star, u0_star, m)
+	p =  DEparams(r, a, κ, K, λ)
+	u_star = process_all(p, u0_star, m)
 
 	# Proposal likelihood
 	if size(u_star, 1) < 26
@@ -315,7 +315,7 @@ function mcmc(m, pars, nburn, nmcmc)
 	# Burn-in
 	for i in 1:nburn
 
-		if i % 100 == 0
+		if i % 500 == 0
 			@show i
 		end
 
@@ -340,7 +340,7 @@ function mcmc(m, pars, nburn, nmcmc)
 
 	for i in 1:nmcmc
 
-		if i % 100 == 0
+		if i % 500 == 0
 			@show i
 		end
 
