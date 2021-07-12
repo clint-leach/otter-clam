@@ -53,7 +53,7 @@ end
 function sample_r!(pars, m)
 
 	@unpack η_r, r, accept_r, u0, a, κ, loglik, u, σ, K = pars
-	@unpack λ, η_r_prior, r_tune, N = m
+	@unpack λ, η_r_prior, r_tune, N, T = m
 
 	# Proposal
 	forward_prop = MvNormal(η_r, r_tune)
@@ -65,7 +65,7 @@ function sample_r!(pars, m)
 	u_star = process_all(p_star, u0, m)
 
 	# Proposal likelihood
-	if size(u_star, 1) < 26
+	if size(u_star, 1) < T
 		loglik_star = fill(-Inf, N)
 	else
 		loglik_star = likelihood(u_star, σ, m)
@@ -94,7 +94,7 @@ end
 function sample_a!(pars, m)
 
 	@unpack r, accept_a, u0, a, κ, loglik, u, σ, K = pars
-	@unpack λ, a_tune, a_prior = m
+	@unpack λ, a_tune, a_prior, N, T = m
 
 	# Proposal
 	forward_prop = truncated(Normal(a, a_tune), 0.0, Inf)
@@ -106,7 +106,7 @@ function sample_a!(pars, m)
 	u_star = process_all(p_star, u0, m)
 
 	# Proposal likelihood
-	if size(u_star, 1) < 26
+	if size(u_star, 1) < T
 		loglik_star = fill(-Inf, N)
 	else
 		loglik_star = likelihood(u_star, σ, m)
@@ -134,7 +134,7 @@ end
 function sample_κ!(pars, m)
 
 	@unpack r, accept_κ, u0, a, κ, loglik, u, σ, K = pars
-	@unpack λ, κ_tune, κ_prior = m
+	@unpack λ, κ_tune, κ_prior, N, T = m
 
 	# Proposal
 	forward_prop = truncated(Normal(κ, κ_tune), 0.0, Inf)
@@ -146,7 +146,7 @@ function sample_κ!(pars, m)
 	u_star = process_all(p_star, u0, m)
 
 	# Proposal likelihood
-	if size(u_star, 1) < 26
+	if size(u_star, 1) < T
 		loglik_star = fill(-Inf, N)
 	else
 		loglik_star = likelihood(u_star, σ, m)
@@ -173,7 +173,7 @@ end
 function sample_K!(pars, m)
 
 	@unpack r, K, accept_K, u0, a, κ, loglik, u, σ = pars
-	@unpack λ, K_tune, K_prior = m
+	@unpack λ, K_tune, K_prior, N, T = m
 
 	# Proposal
 	forward_prop = truncated(Normal(K, K_tune), 0.0, Inf)
@@ -185,7 +185,7 @@ function sample_K!(pars, m)
 	u_star = process_all(p_star, u0, m)
 
 	# Proposal likelihood
-	if size(u_star, 1) < 26
+	if size(u_star, 1) < T
 		loglik_star = fill(-Inf, N)
 	else
 		loglik_star = likelihood(u_star, σ, m)
@@ -213,7 +213,7 @@ end
 function sample_u0!(pars, m)
 
 	@unpack r, accept_u0, u0, η_0, a, κ, loglik, u, σ, K = pars
-	@unpack λ, η_0_prior, u0_tune, N = m
+	@unpack λ, η_0_prior, u0_tune, N, T = m
 
 	# Proposal
 	forward_prop = MvNormal(η_0, u0_tune)
@@ -225,7 +225,7 @@ function sample_u0!(pars, m)
 	u_star = process_all(p, u0_star, m)
 
 	# Proposal likelihood
-	if size(u_star, 1) < 26
+	if size(u_star, 1) < T
 		loglik_star = fill(-Inf, N)
 	else
 		loglik_star = likelihood(u_star, σ, m)
