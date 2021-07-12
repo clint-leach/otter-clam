@@ -9,12 +9,29 @@ function likelihood(u, σ, m)
 	for i in 1:N
 		for t in 1:T
 			if !ismissing(z[t, i])
-				loglik[i] += logpdf(truncated(Normal(u[t, i], σ), 0.0, Inf), z[t, i])
+				sigma = sqrt(σ * u[t, i])
+				loglik[i] += logpdf(truncated(Normal(u[t, i], sigma), 0.0, Inf), z[t, i])
 			end
 		end
 	end
 
 	return loglik
+end
+
+# Sample z
+function sample_z!(pars, m)
+
+	@unpack T, N = m
+	@unpack z, u, σ = pars
+
+	for i in 1:N
+		for t in 1:T
+			sigma = sqrt(σ * u[t, i])
+			z[t, i] = rand(truncated(Normal(u[t, i], sigma), 0.0, Inf))
+		end
+	end
+
+	@pack! pars = z
 end
 
 # Sample measurement variance
@@ -305,7 +322,8 @@ function mcmc(m, pars, nburn, nmcmc)
 				 "accept_K" => fill(0, nmcmc),
 				 "accept_u0" => fill(0, nmcmc),
 				 "accept_sigma" => fill(0, nmcmc),
-				 "u" => fill(0.0, m.T, m.N, nmcmc))
+				 "u" => fill(0.0, m.T, m.N, nmcmc),
+				 "zpred" => fill(0.0, m.T, m.N, nmcmc))
 
 	# Initialize process and likelihood
 	p =  DEparams(pars.r, pars.a, pars.κ, pars.K, m.λ)
@@ -325,15 +343,11 @@ function mcmc(m, pars, nburn, nmcmc)
 
 		sample_a!(pars, m)
 
-		# sample_κ!(pars, m)
+		sample_κ!(pars, m)
 
 		sample_u0!(pars, m)
 
-		sample_β_0!(pars, m)
-
 		sample_r!(pars, m)
-
-		sample_β_r!(pars, m)
 
 		sample_σ!(pars, m)
 	end
@@ -349,7 +363,7 @@ function mcmc(m, pars, nburn, nmcmc)
 
 		sample_a!(pars, m)
 
-		# sample_κ!(pars, m)
+		sample_κ!(pars, m)
 
 		sample_u0!(pars, m)
 
@@ -360,6 +374,8 @@ function mcmc(m, pars, nburn, nmcmc)
 		sample_β_r!(pars, m)
 
 		sample_σ!(pars, m)
+
+		sample_z!(pars, m)
 
 		# Saving samples
 
@@ -382,6 +398,7 @@ function mcmc(m, pars, nburn, nmcmc)
 		chain["accept_sigma"][i] = pars.accept_σ
 
 		chain["u"][:, :, i] = pars.u
+		chain["zpred"][:, :, i] = pars.z
 
 	end
 
