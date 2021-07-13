@@ -189,7 +189,7 @@ end
 
 function sample_K!(pars, m)
 
-	@unpack r, K, accept_K, u0, a, κ, loglik, u, σ = pars
+	@unpack r, K, accept_K, u0, a, κ, loglik, u, σ, η_0 = pars
 	@unpack λ, K_tune, K_prior, N, T = m
 
 	# Proposal
@@ -199,7 +199,8 @@ function sample_K!(pars, m)
 
 	# Proposal process model
 	p_star =  DEparams(r, a, κ, K_star, λ)
-	u_star = process_all(p_star, u0, m)
+	u0_star = K_star * logistic.(η_0)
+	u_star = process_all(p_star, u0_star, m)
 
 	# Proposal likelihood
 	if size(u_star, 1) < T
@@ -220,10 +221,11 @@ function sample_K!(pars, m)
 		accept_K = 1
 		K = K_star
 		u = u_star
+		u0 = u0_star
 		loglik = loglik_star
 	end
 
-	@pack! pars = K, accept_K, u, loglik
+	@pack! pars = K, accept_K, u, u0, loglik
 end
 
 # Sample functional response saturation constant
@@ -235,7 +237,7 @@ function sample_u0!(pars, m)
 	# Proposal
 	forward_prop = MvNormal(η_0, u0_tune)
 	η_0_star = rand(forward_prop)
-	u0_star = exp.(η_0_star)
+	u0_star = K * logistic.(η_0_star)
 
 	# Proposal process model
 	p =  DEparams(r, a, κ, K, λ)
@@ -326,7 +328,7 @@ function mcmc(m, pars, nburn, nmcmc)
 				 "zpred" => fill(0.0, m.T, m.N, nmcmc))
 
 	# Initialize process and likelihood
-	p =  DEparams(pars.r, pars.a, pars.κ, pars.K, m.λ)
+	p = DEparams(pars.r, pars.a, pars.κ, pars.K, m.λ)
 	pars.u = process_all(p, pars.u0, m)
 	pars.loglik = likelihood(pars.u, pars.σ, m)
 

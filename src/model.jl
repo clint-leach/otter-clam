@@ -71,8 +71,7 @@ end
 
 @with_kw mutable struct parameters
 
-	u0::Vector{Float64}
-	η_0::Vector{Float64} = log.(u0)
+	η_0::Vector{Float64}
 	β_0::Vector{Float64}
 
 	r::Vector{Float64}
@@ -84,6 +83,7 @@ end
 	κ::Float64
 	σ::Float64
 
+	u0::Vector{Float64} = K * logistic.(η_0) 
 	u::Matrix{Float64}
 	z::Matrix{Float64}
 	loglik::Vector{Float64}
