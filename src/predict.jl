@@ -34,7 +34,7 @@ function predict(chain, iters, m)
         η_0_pred = rand(MvNormal(μ_pred_0, Σ_pred_0))
 
         r = exp.(η_r_pred)
-        u0 = exp.(η_0_pred)
+        u0 = K * logistic.(η_0_pred)
         
         # Run process model at every site
         p =  DEparams(r, a, κ, K, λ_all)
