@@ -85,6 +85,7 @@ end
 	σ::Float64
 
 	u::Matrix{Float64}
+	z::Matrix{Float64}
 	loglik::Vector{Float64}
 
 	accept_r::Int64 = 0
