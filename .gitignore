@@ -27,4 +27,6 @@ Manifest.toml
 *.rds
 *.csv
 *.pdf
+*.grd
+*.gri
 data/current
