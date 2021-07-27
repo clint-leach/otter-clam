@@ -27,3 +27,4 @@ Manifest.toml
 *.rds
 *.csv
 *.pdf
+data/current
