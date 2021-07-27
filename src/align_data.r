@@ -4,6 +4,7 @@ library(plyr)
 library(reshape2)
 library(fields)
 library(spam64)
+library(magrittr)
 
 # Loading in infauna sampling data =============================================
 
@@ -25,19 +26,16 @@ sites <- ddply(data, .(site), summarise,
                subtidal = type[1] == "subtidal")
 
 # Making spatial points object from site list 
-crdref <- CRS('+proj=longlat +datum=NAD83')
+crdref <- CRS(SRS_string = "EPSG:4269")
 sitepts <- SpatialPoints(dplyr::select(sites, Longitude, Latitude), proj4string = crdref)
 
 # Extracting lambda at each clam site ==========================================
 
-Boundaries <- readRDS("../data/Boundaries.rds")
-Boundary <- Boundaries$Boundary
-
-lambda.all <- readRDS("../output/lambda_mean.rds")
+lambda.all <- brick("../output/lambda_mean.grd")
 
 # Aligning the CRS
-crs(lambda.all) <- crs(Boundary)
-sitepts_lambda <- spTransform(sitepts, crs(Boundary))
+crs(lambda.all) <- "EPSG:26708"
+sitepts_lambda <- spTransform(sitepts, wkt(lambda.all))
 
 # Extracting lambdas
 lambda <- extract(lambda.all, sitepts_lambda)
@@ -59,7 +57,7 @@ SAG_array[samples] <- ifelse(is.na(SAG_array[samples]), 0.0, SAG_array[samples])
 # Loading in and extracting current speed at each infauna site =================
 
 rms_field <- raster("../data/current/w001001.adf") %>% 
-  crop(Boundary)
+  crop(lambda.all)
 
 rms_pts <- rasterToPoints(rms_field, spatial = TRUE)
 
@@ -67,7 +65,7 @@ rms_pts <- rasterToPoints(rms_field, spatial = TRUE)
 fit <- fastTps(rms_pts@coords, log(rms_pts@data), lon.lat = FALSE, lambda = 0, theta = 400, k = 2)
 
 # Predicting current speed at clam sites
-sitepts_rms <- spTransform(sitepts, crs(rms_field))
+sitepts_rms <- spTransform(sitepts, wkt(rms_field))
 site_preds <- predict.fastTps(fit, xnew = sitepts_rms@coords) %>% exp()
 
 covars <- mutate(sites, intercept = 1, rms = site_preds) %>% 
@@ -87,9 +85,9 @@ lambda_near <- lambda_near[obs, ]
 predpts <- coordinates(lambda.all, spatial = TRUE) %>% 
   magrittr::extract(X[, 2] > 0) %>% 
   magrittr::extract(obs) %>% 
-  spTransform(crs(rms_field))
+  spTransform(wkt(rms_field))
 
-pred_lonlat <- spTransform(predpts, crdref)@coords
+pred_lonlat <- spTransform(predpts, wkt(sitepts))@coords
 
 # Generate kriged predictions for each of the prediction sites
 pred_rms <- predict.fastTps(fit, xnew = predpts@coords) %>% exp()
@@ -106,11 +104,14 @@ preds_to_preds <- pointDistance(predpts, predpts, lonlat = FALSE, allpairs = TRU
 # Saving all the data to load into Julia for model fitting =====================
 
 # Some things to help with plotting
-sites <- mutate(sites, x = sitepts_lambda@coords[, 1], y = sitepts_lambda@coords[, 2])
+sites <- mutate(sites, x = sitepts_lambda@coords[, 1], y = sitepts_lambda@coords[, 2]) %>% 
+  subset(site %in% colnames(otter_array))
+
 pred_sites <- coordinates(lambda.all) %>% 
   magrittr::extract(X[, 2] > 0, ) %>% 
   magrittr::extract(obs, )
-  
+
+Boundaries <- readRDS("../data/Boundaries.rds")
 boundary <- rasterToPoints(Boundaries$BoundaryNA) %>% as.data.frame()
 
 # Wrapping it all up in a list

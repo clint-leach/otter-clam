@@ -116,4 +116,4 @@ for(i in 1:nmcmc){
   lambda.mean <- lambda.mean + 1 / nmcmc * lambda.all
 }
 
-saveRDS(lambda.mean, "../output/lambda_mean.rds")
+writeRaster(lambda.mean, "../output/lambda_mean.grd", bandorder = "BIL")
