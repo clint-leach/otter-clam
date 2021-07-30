@@ -9,7 +9,7 @@ function likelihood(u, σ, m)
 	for i in 1:N
 		for t in 1:T
 			if !ismissing(z[t, i])
-				sigma = sqrt(σ * u[t, i])
+				sigma = sqrt(σ * u[t, i]) + 0.01
 				loglik[i] += logpdf(truncated(Normal(u[t, i], sigma), 0.0, Inf), z[t, i])
 			end
 		end
