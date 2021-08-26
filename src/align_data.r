@@ -8,22 +8,56 @@ library(magrittr)
 
 # Loading in infauna sampling data =============================================
 
-# Intertidal data
-data <- read.csv("../data/intertidal_prey.csv") %>% 
+# Processed avg biomass data (which informs sampling)
+biomass <- read.csv("../data/intertidal_prey.csv") %>% 
   subset(!site  %in% c("FrancisE", "GeikieE", "DrakeE", "LesterE", "NetlandE", 
                        "StrawberryE", "WhidbeyE", "JohnsonE"))
 
+# Creating a summary table of all the sites and their locations
+sites <- ddply(biomass, .(site), summarise, 
+               Longitude = Longitude[1], 
+               Latitude = Latitude[1],
+               subtidal = type[1] == "subtidal",
+               nquad = subtidal * 10 + 10)
+
+# Years each site was sampled
+years <- ddply(biomass, .(site), summarise,
+               year = unique(Year))
+
+# Filling in quadrats
+quadrats <- ddply(sites, .(site), summarise,
+                  quad  = 1:nquad)
+
+# Raw count by size and quadrat data for Saxidomus giganteus
+counts_wide <- read.csv("../data/SAG_count.csv")
+
+# Processing data to get total by site, quadrat, and year
+sample_info <- dplyr::select(counts_wide, c("TypeSiteYearSiteQuadTaxa", "type", "year", "site", "quad", "Taxa")) %>% 
+  dplyr::rename(sample_id = TypeSiteYearSiteQuadTaxa)
+
+counts <- counts_wide[, 2:115] %>% as.matrix() %>% 
+  melt(varnames = c("sample_id", "size"), value.name = "count") %>% 
+  mutate(sample_id = sample_info$sample_id[sample_id], 
+         size = substring(size, 2) %>% as.numeric,
+         biomass = count * 0.000214 * size ^ 2.78) %>% 
+  join(sample_info) %>% 
+  ddply(.(year, site, quad), summarise, 
+              total = sum(count))
+
+# Filling in zeros
+counts <- join(years, quadrats) %>% 
+  join(counts) %>% 
+  mutate(total = ifelse(is.na(total), 0, total))
+
+# Summing over quadrats
+abundance<- ddply(counts, .(site, year), summarise,
+               total = sum(total))
+
 # Getting which years each site was sampled (to fill in zeros)
-samples <- ddply(data, .(site), summarise,
+samples <- ddply(biomass, .(site), summarise,
                  years = c(1993:2018),
                  sampled = years %in% Year) %>% 
   reshape2::acast(years ~ site, value.var = "sampled")
-
-# Creating a summary table of all the sites and their locations
-sites <- ddply(data, .(site), summarise, 
-               Longitude = Longitude[1], 
-               Latitude = Latitude[1],
-               subtidal = type[1] == "subtidal")
 
 # Making spatial points object from site list 
 crdref <- CRS(SRS_string = "EPSG:4269")
@@ -41,18 +75,14 @@ sitepts_lambda <- spTransform(sitepts, wkt(lambda.all))
 lambda <- extract(lambda.all, sitepts_lambda)
 colnames(lambda) <- c(1993:2018)
 
-lambda <- melt(lambda, varnames = c("site", "Year"), value.name = "lambda") %>% 
+lambda <- melt(lambda, varnames = c("site", "year"), value.name = "lambda") %>% 
   mutate(site = sites$site[site]) %>% 
   subset(!is.na(lambda))
 
-joint <- join(lambda, subset(data, spp == "SAG"))
+joint <- join(lambda, abundance)
 
-SAG_array <- reshape2::acast(joint, Year ~ site, value.var = "AvgOfAvgOfbiomass")
-otter_array <- reshape2::acast(joint, Year ~ site, value.var = "lambda")
-
-# Filling in zeros
-samples <- samples[, colnames(samples) %in% colnames(otter_array)]
-SAG_array[samples] <- ifelse(is.na(SAG_array[samples]), 0.0, SAG_array[samples])
+SAG_array <- reshape2::acast(joint, year ~ site, value.var = "total")
+otter_array <- reshape2::acast(joint, year ~ site, value.var = "lambda")
 
 # Loading in and extracting current speed at each infauna site =================
 
@@ -104,8 +134,12 @@ preds_to_preds <- pointDistance(predpts, predpts, lonlat = FALSE, allpairs = TRU
 # Saving all the data to load into Julia for model fitting =====================
 
 # Some things to help with plotting
-sites <- mutate(sites, x = sitepts_lambda@coords[, 1], y = sitepts_lambda@coords[, 2]) %>% 
+sites <- mutate(sites, 
+                x = sitepts_lambda@coords[, 1], 
+                y = sitepts_lambda@coords[, 2]) %>% 
   subset(site %in% colnames(otter_array))
+
+counts <- subset(counts, site %in% colnames(otter_array))
 
 pred_sites <- coordinates(lambda.all) %>% 
   magrittr::extract(X[, 2] > 0, ) %>% 
@@ -120,6 +154,7 @@ datalist <- list(lambda = otter_array,
                  X = covars,
                  X_all = pred_covars,
                  lambda_all = t(lambda_near),
+                 byquad = counts,
                  obs_sites = sites,
                  pred_sites = pred_sites,
                  Doo = site_to_site,

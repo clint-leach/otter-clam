@@ -2,7 +2,7 @@ function predict(chain, m)
 
     @unpack X_all, X, Σuo_r, Ω_r, Σuu_r, Σuo_0, Ω_0, Σuu_0, λ_all, T = m
 
-    nmcmc = length(chain["sigma"])
+    nmcmc = length(chain["a"])
     npred = size(X_all, 1)
 
     # Building storage arrays
