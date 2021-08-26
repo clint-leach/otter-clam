@@ -308,22 +308,22 @@ function mcmc(m, pars, keep_every, nburn, nmcmc)
 
 	nkeep = floor(Int64, nmcmc / keep_every)
 
-	chain = Dict("r" => fill(0.0, m.N, nkeep),
-				 "eta_r"=> fill(0.0, m.N, nkeep),
-	             "a" => fill(0.0, nkeep),
-				 "K" => fill(0.0, nkeep),
-				 "kappa" => fill(0.0, nkeep),
-				 "eta_0" => fill(0.0, m.N, nkeep),
-				 "u0" => fill(0.0, m.N, nkeep),
-				 "beta_r" => fill(0.0, m.p, nkeep),
-				 "beta_0" => fill(0.0, m.p, nkeep),
-	             "accept_r" => fill(0, nkeep),
-				 "accept_a" => fill(0, nkeep),
-				 "accept_kappa" => fill(0, nkeep),
-				 "accept_K" => fill(0, nkeep),
-				 "accept_u0" => fill(0, nkeep),
-				 "u" => fill(0.0, m.T, m.N, nkeep),
-				 "zpred" => fill(0.0, m.T, m.N, nkeep))
+	chain = Dict(:r => fill(0.0, m.N, nkeep),
+				 :eta_r=> fill(0.0, m.N, nkeep),
+	             :a => fill(0.0, nkeep),
+				 :K => fill(0.0, nkeep),
+				 :kappa => fill(0.0, nkeep),
+				 :eta_0 => fill(0.0, m.N, nkeep),
+				 :u0 => fill(0.0, m.N, nkeep),
+				 :beta_r => fill(0.0, m.p, nkeep),
+				 :beta_0 => fill(0.0, m.p, nkeep),
+	             :accept_r => fill(0, nkeep),
+				 :accept_a => fill(0, nkeep),
+				 :accept_kappa => fill(0, nkeep),
+				 :accept_K => fill(0, nkeep),
+				 :accept_u0 => fill(0, nkeep),
+				 :u => fill(0.0, m.T, m.N, nkeep),
+				 :zpred => fill(0.0, m.T, m.N, nkeep))
 
 	# Initialize process and likelihood
 	p = DEparams(pars.r, pars.a, pars.κ, pars.K, m.λ)
@@ -378,24 +378,24 @@ function mcmc(m, pars, keep_every, nburn, nmcmc)
 		if i % keep_every == 0
 			idx = floor(Int64, i / keep_every)
 
-			chain["r"][:, idx] = pars.r
-			chain["eta_r"][:, idx] = pars.η_r
-			chain["a"][idx] = pars.a
-			chain["K"][idx] = pars.K
-			chain["kappa"][idx] = pars.κ
-			chain["eta_0"][:, idx] = pars.η_0
-			chain["u0"][:, idx] = pars.u0
-			chain["beta_r"][:, idx] = pars.β_r
-			chain["beta_0"][:, idx] = pars.β_0
+			chain[:r][:, idx] = pars.r
+			chain[:eta_r][:, idx] = pars.η_r
+			chain[:a][idx] = pars.a
+			chain[:K][idx] = pars.K
+			chain[:kappa][idx] = pars.κ
+			chain[:eta_0][:, idx] = pars.η_0
+			chain[:u0][:, idx] = pars.u0
+			chain[:beta_r][:, idx] = pars.β_r
+			chain[:beta_0][:, idx] = pars.β_0
 
-			chain["accept_r"][idx] = pars.accept_r
-			chain["accept_a"][idx] = pars.accept_a
-			chain["accept_kappa"][idx] = pars.accept_κ
-			chain["accept_K"][idx] = pars.accept_K
-			chain["accept_u0"][idx] = pars.accept_u0
+			chain[:accept_r][idx] = pars.accept_r
+			chain[:accept_a][idx] = pars.accept_a
+			chain[:accept_kappa][idx] = pars.accept_κ
+			chain[:accept_K][idx] = pars.accept_K
+			chain[:accept_u0][idx] = pars.accept_u0
 
-			chain["u"][:, :, idx] = pars.u
-			chain["zpred"][:, :, idx] = pars.z
+			chain[:u][:, :, idx] = pars.u
+			chain[:zpred][:, :, idx] = pars.z
 		end
 	end
 

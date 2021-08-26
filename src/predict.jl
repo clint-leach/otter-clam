@@ -19,13 +19,13 @@ function predict(chain, m)
 			@show i
 		end
 
-        β_r = chain["beta_r"][:, i]
-        β_0 = chain["beta_0"][:, i]
-        η_r = chain["eta_r"][:, i]
-        η_0 = chain["eta_0"][:, i]
-        a = chain["a"][i]
-        κ = chain["kappa"][i]
-        K = chain["K"][i]
+        β_r = chain[:beta_r][:, i]
+        β_0 = chain[:beta_0][:, i]
+        η_r = chain[:eta_r][:, i]
+        η_0 = chain[:eta_0][:, i]
+        a = chain[:a][i]
+        κ = chain[:kappa][i]
+        K = chain[:K][i]
 
         # Compute μ_pred for r and K
         μ_pred_r = X_all * β_r + Σuo_r * Ω_r * (η_r - X * β_r)
@@ -56,9 +56,9 @@ function predict(chain, m)
         log_flux_pred = log_flux_pred + 1.0 / nmcmc * log.(flux)
     end
 
-    preds = Dict("log_r" => log_r_pred,
-                 "log_u" => log_u_pred,
-                 "log_flux" => log_flux_pred)
+    preds = Dict(:log_r => log_r_pred,
+                 :log_u => log_u_pred,
+                 :log_flux => log_flux_pred)
 
     return preds
 end
