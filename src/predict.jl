@@ -2,7 +2,7 @@ function predict(chain, m)
 
     @unpack X_all, X, Σuo_r, Ω_r, Σuu_r, Σuo_0, Ω_0, Σuu_0, λ_all, T = m
 
-    nmcmc = length(chain["a"])
+    nmcmc = length(chain[:a])
     npred = size(X_all, 1)
 
     # Building storage arrays
@@ -40,13 +40,12 @@ function predict(chain, m)
         
         # Run process model at every site
         p =  DEparams(r, a, κ, K, λ_all)
-        u = process_all(p, u0, m)
+        u = process_pred(p, u0, m)
 
         flux = similar(u)
         for j in 1:npred
             for t in 1:T
-                u[t, j] = u[t, j] > 0 ? u[t, j] : 1e-10
-                flux[t, j] = a * u[t, j] * λ_all[j](t)  / (u[t, j] + κ)
+                flux[t, j] = a * u[t, j] ^ 2 * λ_all[j](t)  / (u[t, j] ^ 2 + κ ^ 2)
             end
         end
 
