@@ -8,163 +8,133 @@ using RCall
 using DataFrames
 using PDMats
 using LinearAlgebra
+using StatsFuns
 
 include("model.jl")
 include("process.jl")
 include("sample.jl")
+include("predict.jl")
 
-# Reading in sea otter forcing time series
-R"data <- readRDS('data/otter_array.rds')"
+# Reading in data
+R"data <- readRDS('data/all.rds')"
 @rget data
 
+# Reading in sea otter forcing time series
+λ_grid = data[:lambda][6:26, :]
+
 # Reading in prey data
-R"sag <- readRDS('data/SAG_array.rds')"
-@rget sag
-
-# Reading in distance matrix
-R"dists <- readRDS('data/distances.rds')"
-@rget dists
-
-# Subsetting to sites with the prey observed
-obs = sum(1 .- ismissing.(sag), dims = 1)[1, :]
-obs = findall(obs .> 1)
-
-# obs = [8, 36]
-data = data[:, obs]
-sag = sag[:, obs]
-D = dists[obs, obs]
+sag = data[:y][:, 6:26, :]
 
 # Number of sites
-N = size(data)[2]
+N = size(sag, 3)
 
 # Number of years
-T = size(data)[1]
+T = size(sag, 2)
+
+# Reading in and scaling covariates
+X = deepcopy(data[:X])
+X_all = deepcopy(data[:X_all])
+
+Xmeans = mean(X, dims = 1)
+Xsd = std(X, dims = 1)
+
+X[:, 2] = (X[:, 2] .- Xmeans[2]) ./ (2 * Xsd[2])
+X[:, 3] = (X[:, 3] .- Xmeans[3]) ./ (2 * Xsd[3])
+
+X_all[:, 2] = (X_all[:, 2] .- Xmeans[2]) ./ (2 * Xsd[2])
+X_all[:, 3] = (X_all[:, 3] .- Xmeans[3]) ./ (2 * Xsd[3])
 
 # Buidling interpolator to give the solver
-λ = [interpolate(data[:, i], BSpline(Linear())) for i in 1:N]
+λ = [interpolate(λ_grid[:, i], BSpline(Linear())) for i in 1:N]
 
-# Building fixed covariance matrix for log_r
-Σ_r  = PDMat(2.0 * exp.(-0.5 * (D ./ 10000)))
-Σ_K  = PDMat(1.0 * exp.(-0.5 * (D ./ 10000)))
-
-# Simulating data
-# log_r = rand(MvNormal(fill(log(0.2), N), Σ_r))
-# log_K = rand(MvNormal(fill(log(500), N), Σ_K))
-#
-# p = [log_r, log_K, 50.0, 500.0, λ]
-# prob = ODEProblem(prey_all!, rand(Normal(1000, 200), N), (1.0, 26.0), p)
-# sol = solve(prob, Tsit5(), saveat=1.0)
-#
-# z = [rand(truncated(Normal(sol[i, t], 50), 0.0, Inf)) for t in 1:T, i in 1:N]
+# Prediction processing
+M = size(data[:lambda_all], 2)
+λ_all = [interpolate(data[:lambda_all][6:26, i], BSpline(Linear())) for i in 1:M]
 
 # Setting up model and parameter objects
 m = model(z = sag,
-          T = T,
-		  tobs = 1:T,
-          tspan = (1.0, 26.0),
-		  N = N,
           λ = λ,
-		  α_r_tune = ScalMat(N, 0.1),
-		  α_r_prior = MvNormal(N, 1.0),
-		  L_r = cholesky(Σ_r).U,
-		  μ_r = fill(log(0.2), N),
-		  a_tune = 50.0,
-		  a_prior = Gamma(1, 50),
-		  κ_tune = 100.0,
-		  κ_prior = Gamma(50, 10),
-		  α_K_tune = ScalMat(N, 0.1),
-		  α_K_prior = MvNormal(N, 1.0),
-		  μ_K = fill(log(500.0), N),
-		  L_K = cholesky(Σ_K).U,
-		  u0_tune = 500.0,
-		  u0_prior = Gamma(5, 200),
-		  σ_tune = 50,
-		  σ_prior = truncated(Normal(0, 100), 0.0, Inf)
+		  X = X,
+		  nq = Int64.(data[:obs_sites][!, :nquad]),
+		  a_prior = Gamma(2, 10),
+		  κ_prior = Gamma(5, 6),
+		  K_prior = Gamma(10, 6),
+		  σ_prior = Beta(4, 1), 
+		  Ω_β_r = PDiagMat([1.0, 0.25, 0.25]),
+		  μ_β_r = [-2.0, 0.0, 0.0],
+		  Ω_β_0 = PDiagMat([1.0, 0.16, 0.16]),
+		  μ_β_0 = [0.0, 0.0, 0.0],
+		  Doo = data[:Doo],
+		  Duu = data[:Duu],
+		  Duo = data[:Duo],
+		  σ_r = 1.0,
+		  ρ_r = 1000.0,
+		  σ_0 = 2.5,
+		  ρ_0 = 1000.0,
+		  X_all = X_all,
+		  λ_all = λ_all,
+		  a_tune = 2.0,
+		  κ_tune = 3.0,
+		  K_tune = 3.0,
+		  σ_tune = 0.02,
+		  r_tune = ScalMat(N, 5e-3),
+		  u0_tune = ScalMat(N, 1e-2)
 		  )
 
-pars = parameters(u0 = fill(1000.0, N),
-                  log_r = fill(log(0.2), N),
-				  α_r = fill(0.0, N),
-				  log_K = fill(log(500.0), N),
-				  α_K = fill(0.0, N),
-				  a = 50.0,
-				  κ = 500.0,
-				  σ = 50.0,
-				  accept_r = 0,
-				  accept_a = 0,
-				  accept_κ = 0,
-				  accept_K = 0,
-				  accept_u0 = fill(0, N),
-				  accept_σ = 0,
+pars = parameters(η_0 = fill(0.0, m.N),
+				  r = fill(0.2, m.N),
+				  β_r = [0.0, 0.0, 0.0],
+				  β_0 = [0.0, 0.0, 0.0],
+				  a = 20.0,
+				  K = 60.0,
+				  κ = 60.0,
+				  σ = 0.5, 
 				  u = fill(0.0, m.T, m.N),
-				  loglik = fill(0.0, N))
+				  z = fill(0.0, m.T, m.N),
+				  loglik = fill(0.0, m.N))
 
-@btime sample_r!(pars, m)
+chain = mcmc(m, pars, 10, 250000, 250000)
 
-log_K_star = m.μ_K + m.L_K * pars.α_K
-p_star =  [pars.log_r, log_K_star, pars.a, pars.κ, m.λ]
-@code_warntype process_all(p_star, pars.u0, m)
+preds =  predict(chain, m)
 
-@code_warntype mcmc(m, pars, 1)
+R"saveRDS($(chain), 'output/chain_nb.rds')"
+R"saveRDS($(preds), 'output/prediction_nb.rds')"
 
-sum(chain["accept_K"])
-sum(chain["accept_r"])
+sum(chain[:accept_a])
+sum(chain[:accept_kappa])
+sum(chain[:accept_K]) 
+sum(chain[:accept_sigma])
+sum(chain[:accept_r]) 
+sum(chain[:accept_u0])
+
+plot(chain[:beta_0][1, :])
+plot(chain[:beta_0][2, :])
+plot(chain[:beta_0][3, :])
+
+plot(chain[:beta_r][1, :])
+plot(chain[:beta_r][2, :])
+plot(chain[:beta_r][3, :])
 
 # Univariate plots
 
-sum(chain["accept_sigma"][25001:end]) / 25000
+plot(chain[:K])
+histogram(chain[:K], normalize = :true)
+plot!(m.K_prior)
 
-plot(chain["sigma"])
-histogram(chain["sigma"][25001:end], normalize = :true)
-plot!(truncated(Normal(0, 100), 0.0, Inf))
+plot(chain[:sigma])
+histogram(chain["sigma"], normalize = :true)
+plot!(m.σ_prior)
 
-sum(chain["accept_r"][25001:end]) / 25000
+plot(chain[:kappa])
+histogram(chain[:kappa], normalize = :true)
+plot!(m.κ_prior)
 
-plot(chain["r"][1, :])
-plot!(chain["r"][2, :])
-
-density(exp.(chain["r"][1, 25001:end]), normalize = :true)
-density!(chain["r"][2, 25001:end], normalize = :true)
-plot!(Normal(log(0.2), 2.0))
-
-sum(chain["accept_u0"], dims = 2) ./ 50000
-
-plot(chain["u0"][end, 25001:end])
-
-histogram(chain["u0"][1, 25001:end], normalize = :true)
-plot!(Gamma(5, 200))
-
-sum(chain["accept_K"][25001:end]) / 25000
-
-plot(chain["K"][1, :])
-plot!(chain["K"][2, :])
-histogram(exp.(chain["K"][2, 25001:end]), normalize = :true)
-
-sum(chain["accept_kappa"][25001:end]) / 25000
-
-plot(chain["kappa"])
-histogram(chain["kappa"][25001:end], normalize = :true)
-plot!(Gamma(10, 50))
-
-sum(chain["accept_a"][25001:end]) / 25000
-
-plot(chain["a"])
-histogram(chain["a"][25001:end], normalize = :true)
-plot!(Gamma(1, 50))
+plot(chain[:a])
+histogram(chain[:a], normalize = :true)
+plot!(m.a_prior)
 
 # Dynamics
-plot(1:26, chain["u"][:, 6, (end - 100):end], color = :gray, legend = false)
-scatter!(1:26, m.z[:, 6])
-hline!([exp(mean(chain["K"][1, :]))])
-
-# Bivariate plots
-scatter(chain["r"][25001:end], chain["K"][25001:end])
-scatter(chain["r"][25001:end], chain["a"][25001:end])
-scatter(chain["r"][25001:end], chain["kappa"][25001:end])
-
-scatter(chain["K"][25001:end], chain["a"][25001:end])
-scatter(chain["K"][225001:end], chain["kappa"][25001:end])
-
-scatter(chain["a"][25001:end], chain["kappa"][25001:end])
-
-scatter(chain["u0"][1, 25001:end], chain["K"][25001:end])
+zmean = mean(chain[:zpred], dims = 3)
+plot(1:21, chain[:zpred][:, 39, (end-100):end], color = :gray, legend = false)
+plot!(1:21, zmean[:, 39, 1], color = :black, width = 2)
+scatter!(1:21, m.z[:, :, 39]', color = :black)
