@@ -7,8 +7,8 @@
 	λ
 	X
 	nq
-	T = size(z, 1)
-	N = size(z, 2)
+	T = size(z, 2)
+	N = size(z, 3)
 	tspan = (1.0, Float64(T))
 	p = size(X, 2)
 
@@ -21,6 +21,9 @@
 
 	κ_tune
 	κ_prior
+
+	σ_tune
+	σ_prior
 
 	# Distance matrices
 	Doo
@@ -79,6 +82,7 @@ end
 	K::Float64
 	a::Float64
 	κ::Float64
+	σ::Float64
 
 	u0::Vector{Float64} = K * logistic.(η_0) 
 	u::Matrix{Float64}
@@ -89,7 +93,7 @@ end
 	accept_a::Int64 = 0
 	accept_κ::Int64 = 0
 	accept_K::Int64 = 0
-	accept_β::Int64 = 0
+	accept_σ::Int64 = 0
 	accept_u0::Int64 = 0
 
 end

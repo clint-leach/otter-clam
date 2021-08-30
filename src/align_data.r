@@ -49,16 +49,6 @@ counts <- join(years, quadrats) %>%
   join(counts) %>% 
   mutate(total = ifelse(is.na(total), 0, total))
 
-# Summing over quadrats
-abundance<- ddply(counts, .(site, year), summarise,
-               total = sum(total))
-
-# Getting which years each site was sampled (to fill in zeros)
-samples <- ddply(biomass, .(site), summarise,
-                 years = c(1993:2018),
-                 sampled = years %in% Year) %>% 
-  reshape2::acast(years ~ site, value.var = "sampled")
-
 # Making spatial points object from site list 
 crdref <- CRS(SRS_string = "EPSG:4269")
 sitepts <- SpatialPoints(dplyr::select(sites, Longitude, Latitude), proj4string = crdref)
@@ -79,10 +69,10 @@ lambda <- melt(lambda, varnames = c("site", "year"), value.name = "lambda") %>%
   mutate(site = sites$site[site]) %>% 
   subset(!is.na(lambda))
 
-joint <- join(lambda, abundance)
+joint <- join(lambda, counts)
 
-SAG_array <- reshape2::acast(joint, year ~ site, value.var = "total")
-otter_array <- reshape2::acast(joint, year ~ site, value.var = "lambda")
+SAG_array <- reshape2::acast(joint, quad ~ year ~ site, value.var = "total")[1:20, , ]
+otter_array <- reshape2::acast(lambda, year ~ site, value.var = "lambda")
 
 # Loading in and extracting current speed at each infauna site =================
 

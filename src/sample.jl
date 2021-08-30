@@ -1,6 +1,6 @@
 # Sampling scripts and helper functions
 
-function likelihood(u, m)
+function likelihood(u, σ, m)
 
 	@unpack z, T, N, nq = m
 
@@ -8,8 +8,9 @@ function likelihood(u, m)
 
 	for i in 1:N
 		for t in 1:T
-			if !ismissing(z[t, i])
-				loglik[i] += logpdf(Poisson(nq[i] * u[t, i]), z[t, i])
+			if !ismissing(z[1, t, i])
+				n = σ / (1 - σ) * u[t, i]
+				loglik[i] += sum(logpdf.(NegativeBinomial(n, σ), z[1:nq[i], t, i]))
 			end
 		end
 	end
@@ -20,12 +21,13 @@ end
 # Sample z
 function sample_z!(pars, m)
 
-	@unpack T, N, nq = m
-	@unpack z, u = pars
+	@unpack T, N = m
+	@unpack z, u, σ = pars
 
 	for i in 1:N
 		for t in 1:T
-			z[t, i] = rand(Poisson(u[t, i]))
+			n = σ / (1 - σ) * u[t, i]
+			z[t, i] = rand(NegativeBinomial(n, σ))
 		end
 	end
 
@@ -39,9 +41,9 @@ function sample_σ!(pars, m)
 	@unpack σ_prior, σ_tune = m
 
 	# Proposal
-	forward_prop = truncated(Normal(σ, σ_tune), 0.0, Inf)
+	forward_prop = truncated(Normal(σ, σ_tune), 0.0, 1.0)
 	σ_star = rand(forward_prop)
-	back_prop = truncated(Normal(σ_star, σ_tune), 0.0, Inf)
+	back_prop = truncated(Normal(σ_star, σ_tune), 0.0, 1.0)
 
 	# Proposal likelihood
 	loglik_star = likelihood(u, σ_star, m)
@@ -67,7 +69,7 @@ end
 # Sample prey population growth rate
 function sample_r!(pars, m)
 
-	@unpack η_r, r, accept_r, u0, a, κ, loglik, u, K = pars
+	@unpack η_r, r, accept_r, u0, a, κ, loglik, u, K, σ = pars
 	@unpack λ, η_r_prior, r_tune, N, T = m
 
 	# Proposal
@@ -83,7 +85,7 @@ function sample_r!(pars, m)
 	if size(u_star, 1) < T
 		loglik_star = fill(-Inf, N)
 	else
-		loglik_star = likelihood(u_star, m)
+		loglik_star = likelihood(u_star, σ, m)
 	end
 
 	# Computing the MH ratio
@@ -108,7 +110,7 @@ end
 # Sample attack rate
 function sample_a!(pars, m)
 
-	@unpack r, accept_a, u0, a, κ, loglik, u, K = pars
+	@unpack r, accept_a, u0, a, κ, loglik, u, K, σ = pars
 	@unpack λ, a_tune, a_prior, N, T = m
 
 	# Proposal
@@ -124,7 +126,7 @@ function sample_a!(pars, m)
 	if size(u_star, 1) < T
 		loglik_star = fill(-Inf, N)
 	else
-		loglik_star = likelihood(u_star, m)
+		loglik_star = likelihood(u_star, σ, m)
 	end
 
 	# Computing the MH ratio
@@ -148,7 +150,7 @@ end
 # Sample functional response saturation constant
 function sample_κ!(pars, m)
 
-	@unpack r, accept_κ, u0, a, κ, loglik, u, K = pars
+	@unpack r, accept_κ, u0, a, κ, loglik, u, K, σ = pars
 	@unpack λ, κ_tune, κ_prior, N, T = m
 
 	# Proposal
@@ -164,7 +166,7 @@ function sample_κ!(pars, m)
 	if size(u_star, 1) < T
 		loglik_star = fill(-Inf, N)
 	else
-		loglik_star = likelihood(u_star, m)
+		loglik_star = likelihood(u_star, σ, m)
 	end
 
 	# Computing the MH ratio
@@ -187,7 +189,7 @@ end
 
 function sample_K!(pars, m)
 
-	@unpack r, K, accept_K, u0, a, κ, loglik, u, η_0 = pars
+	@unpack r, K, accept_K, u0, a, κ, loglik, u, η_0, σ = pars
 	@unpack λ, K_tune, K_prior, N, T = m
 
 	# Proposal
@@ -204,7 +206,7 @@ function sample_K!(pars, m)
 	if size(u_star, 1) < T
 		loglik_star = fill(-Inf, N)
 	else
-		loglik_star = likelihood(u_star, m)
+		loglik_star = likelihood(u_star, σ, m)
 	end
 
 	# Computing the MH ratio
@@ -229,7 +231,7 @@ end
 # Sample functional response saturation constant
 function sample_u0!(pars, m)
 
-	@unpack r, accept_u0, u0, η_0, a, κ, loglik, u, K = pars
+	@unpack r, accept_u0, u0, η_0, a, κ, loglik, u, K, σ = pars
 	@unpack λ, η_0_prior, u0_tune, N, T = m
 
 	# Proposal
@@ -245,7 +247,7 @@ function sample_u0!(pars, m)
 	if size(u_star, 1) < T
 		loglik_star = fill(-Inf, N)
 	else
-		loglik_star = likelihood(u_star, m)
+		loglik_star = likelihood(u_star, σ, m)
 	end
 
 	# Computing the MH ratio
@@ -313,6 +315,7 @@ function mcmc(m, pars, keep_every, nburn, nmcmc)
 	             :a => fill(0.0, nkeep),
 				 :K => fill(0.0, nkeep),
 				 :kappa => fill(0.0, nkeep),
+				 :sigma => fill(0.0, nkeep),
 				 :eta_0 => fill(0.0, m.N, nkeep),
 				 :u0 => fill(0.0, m.N, nkeep),
 				 :beta_r => fill(0.0, m.p, nkeep),
@@ -321,6 +324,7 @@ function mcmc(m, pars, keep_every, nburn, nmcmc)
 				 :accept_a => fill(0, nkeep),
 				 :accept_kappa => fill(0, nkeep),
 				 :accept_K => fill(0, nkeep),
+				 :accept_sigma => fill(0, nkeep),
 				 :accept_u0 => fill(0, nkeep),
 				 :u => fill(0.0, m.T, m.N, nkeep),
 				 :zpred => fill(0.0, m.T, m.N, nkeep))
@@ -328,7 +332,7 @@ function mcmc(m, pars, keep_every, nburn, nmcmc)
 	# Initialize process and likelihood
 	p = DEparams(pars.r, pars.a, pars.κ, pars.K, m.λ)
 	pars.u = process_all(p, pars.u0, m)
-	pars.loglik = likelihood(pars.u, m)
+	pars.loglik = likelihood(pars.u, pars.σ, m)
 
 	# Burn-in
 	for i in 1:nburn
@@ -348,6 +352,8 @@ function mcmc(m, pars, keep_every, nburn, nmcmc)
 		sample_u0!(pars, m)
 
 		sample_r!(pars, m)
+
+		sample_σ!(pars, m)
 
 	end
 
@@ -372,6 +378,8 @@ function mcmc(m, pars, keep_every, nburn, nmcmc)
 
 		sample_β_r!(pars, m)
 
+		sample_σ!(pars, m)
+
 		sample_z!(pars, m)
 
 		# Saving samples
@@ -383,6 +391,7 @@ function mcmc(m, pars, keep_every, nburn, nmcmc)
 			chain[:a][idx] = pars.a
 			chain[:K][idx] = pars.K
 			chain[:kappa][idx] = pars.κ
+			chain[:sigma][idx] = pars.σ
 			chain[:eta_0][:, idx] = pars.η_0
 			chain[:u0][:, idx] = pars.u0
 			chain[:beta_r][:, idx] = pars.β_r
@@ -392,6 +401,7 @@ function mcmc(m, pars, keep_every, nburn, nmcmc)
 			chain[:accept_a][idx] = pars.accept_a
 			chain[:accept_kappa][idx] = pars.accept_κ
 			chain[:accept_K][idx] = pars.accept_K
+			chain[:accept_sigma][idx] = pars.accept_σ
 			chain[:accept_u0][idx] = pars.accept_u0
 
 			chain[:u][:, :, idx] = pars.u
