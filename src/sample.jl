@@ -4,13 +4,13 @@ function likelihood(u, σ, m)
 
 	@unpack z, T, N, nq = m
 
-	loglik = fill(0.0, N)
+	loglik = 0.0
 
 	for i in 1:N
 		for t in 1:T
 			if !ismissing(z[1, t, i])
 				n = σ / (1 - σ) * u[t, i]
-				loglik[i] += sum(logpdf.(NegativeBinomial(n, σ), z[1:nq[i], t, i]))
+				loglik += sum(logpdf.(NegativeBinomial(n, σ), z[1:nq[i], t, i]))
 			end
 		end
 	end
@@ -49,8 +49,8 @@ function sample_σ!(pars, m)
 	loglik_star = likelihood(u, σ_star, m)
 
 	# Computing the MH ratio
-	mh1 = sum(loglik_star) + logpdf(σ_prior, σ_star)  + logpdf(back_prop, σ)
-	mh2 = sum(loglik) + logpdf(σ_prior, σ) + logpdf(forward_prop, σ_star)
+	mh1 = loglik_star + logpdf(σ_prior, σ_star)  + logpdf(back_prop, σ)
+	mh2 = loglik + logpdf(σ_prior, σ) + logpdf(forward_prop, σ_star)
 
 	# Accept/reject
 	prob = exp(mh1 - mh2)
@@ -89,8 +89,8 @@ function sample_r!(pars, m)
 	end
 
 	# Computing the MH ratio
-	mh1 = sum(loglik_star) + logpdf(η_r_prior, η_r_star)
-	mh2 = sum(loglik) + logpdf(η_r_prior, η_r)
+	mh1 = loglik_star + logpdf(η_r_prior, η_r_star)
+	mh2 = loglik + logpdf(η_r_prior, η_r)
 
 	# Accept/reject
 	prob = exp(mh1 - mh2)
@@ -130,8 +130,8 @@ function sample_a!(pars, m)
 	end
 
 	# Computing the MH ratio
-	mh1 = sum(loglik_star) + logpdf(a_prior, a_star)  + logpdf(back_prop, a)
-	mh2 = sum(loglik) + logpdf(a_prior, a) + logpdf(forward_prop, a_star)
+	mh1 = loglik_star + logpdf(a_prior, a_star)  + logpdf(back_prop, a)
+	mh2 = loglik + logpdf(a_prior, a) + logpdf(forward_prop, a_star)
 
 	# Accept/reject
 	prob = exp(mh1 - mh2)
@@ -170,8 +170,8 @@ function sample_κ!(pars, m)
 	end
 
 	# Computing the MH ratio
-	mh1 = sum(loglik_star) + logpdf(κ_prior, κ_star) + logpdf(back_prop, κ)
-	mh2 = sum(loglik) + logpdf(κ_prior, κ) + logpdf(forward_prop, κ_star)
+	mh1 = loglik_star + logpdf(κ_prior, κ_star) + logpdf(back_prop, κ)
+	mh2 = loglik + logpdf(κ_prior, κ) + logpdf(forward_prop, κ_star)
 
 	# Accept/reject
 	prob = exp(mh1 - mh2)
@@ -210,8 +210,8 @@ function sample_K!(pars, m)
 	end
 
 	# Computing the MH ratio
-	mh1 = sum(loglik_star) + logpdf(K_prior, K_star) + logpdf(back_prop, K)
-	mh2 = sum(loglik) + logpdf(K_prior, K) + logpdf(forward_prop, K_star)
+	mh1 = loglik_star + logpdf(K_prior, K_star) + logpdf(back_prop, K)
+	mh2 = loglik + logpdf(K_prior, K) + logpdf(forward_prop, K_star)
 
 	# Accept/reject
 	prob = exp(mh1 - mh2)
@@ -251,8 +251,8 @@ function sample_u0!(pars, m)
 	end
 
 	# Computing the MH ratio
-	mh1 = sum(loglik_star) + logpdf(η_0_prior, η_0_star)
-	mh2 = sum(loglik) + logpdf(η_0_prior, η_0)
+	mh1 = loglik_star + logpdf(η_0_prior, η_0_star)
+	mh2 = loglik + logpdf(η_0_prior, η_0)
 
 	# Accept/reject
 	prob = exp(mh1 - mh2)

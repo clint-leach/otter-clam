@@ -87,7 +87,7 @@ end
 	u0::Vector{Float64} = K * logistic.(η_0) 
 	u::Matrix{Float64}
 	z::Matrix{Float64}
-	loglik::Vector{Float64}
+	loglik::Float64
 
 	accept_r::Int64 = 0
 	accept_a::Int64 = 0
