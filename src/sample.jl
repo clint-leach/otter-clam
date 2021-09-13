@@ -83,7 +83,7 @@ function sample_r!(pars, m)
 
 	# Proposal likelihood
 	if size(u_star, 1) < T
-		loglik_star = fill(-Inf, N)
+		loglik_star = -Inf
 	else
 		loglik_star = likelihood(u_star, σ, m)
 	end
@@ -124,7 +124,7 @@ function sample_a!(pars, m)
 
 	# Proposal likelihood
 	if size(u_star, 1) < T
-		loglik_star = fill(-Inf, N)
+		loglik_star = -Inf
 	else
 		loglik_star = likelihood(u_star, σ, m)
 	end
@@ -164,7 +164,7 @@ function sample_κ!(pars, m)
 
 	# Proposal likelihood
 	if size(u_star, 1) < T
-		loglik_star = fill(-Inf, N)
+		loglik_star = -Inf
 	else
 		loglik_star = likelihood(u_star, σ, m)
 	end
@@ -204,7 +204,7 @@ function sample_K!(pars, m)
 
 	# Proposal likelihood
 	if size(u_star, 1) < T
-		loglik_star = fill(-Inf, N)
+		loglik_star = -Inf
 	else
 		loglik_star = likelihood(u_star, σ, m)
 	end
@@ -245,7 +245,7 @@ function sample_u0!(pars, m)
 
 	# Proposal likelihood
 	if size(u_star, 1) < T
-		loglik_star = fill(-Inf, N)
+		loglik_star = -Inf
 	else
 		loglik_star = likelihood(u_star, σ, m)
 	end
