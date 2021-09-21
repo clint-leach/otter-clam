@@ -33,7 +33,7 @@ function process_pred(p, u0, m)
 
 		prob = ODEProblem(prey_all!, [u0[i]], tspan, site_p)
 
-		sol = solve(prob, AutoTsit5(Rosenbrock23()), abstol = 1e-4, reltol = 1e-4, saveat=1.0)
+		sol = solve(prob, AutoVern7(Rosenbrock23()), abstol = 1e-10, reltol = 1e-4, saveat=1.0)
 
 		u[:, i] = Array(sol)
 	end
