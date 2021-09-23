@@ -36,6 +36,12 @@ tau.est <- MCMC.logistic.chains$tau[ind.est]
 K.est <- MCMC.logistic.chains$K[ind.est]
 p.est <- MCMC.logistic.chains$p[ind.est, ]
 
+# Compute posterior mean diffusion coefficeint
+
+delta <- X %*% t(beta.est) %>% rowMeans()
+
+saveRDS(delta, "../output/delta.rds")
+
 # Loop over MCMC output and compute lambda =====================================
 
 lambda.mean <- brick(nrows = y, 

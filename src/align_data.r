@@ -62,7 +62,8 @@ crs(lambda.all) <- "EPSG:26708"
 sitepts_lambda <- spTransform(sitepts, wkt(lambda.all))
 
 # Extracting lambdas
-lambda <- extract(lambda.all, sitepts_lambda)
+cells <- raster::extract(lambda.all, sitepts_lambda, cellnumbers = TRUE)[, 1]
+lambda <- raster::extract(lambda.all, sitepts_lambda)
 colnames(lambda) <- c(1993:2018)
 
 lambda <- melt(lambda, varnames = c("site", "year"), value.name = "lambda") %>% 
@@ -88,23 +89,25 @@ fit <- fastTps(rms_pts@coords, log(rms_pts@data), lon.lat = FALSE, lambda = 0, t
 sitepts_rms <- spTransform(sitepts, wkt(rms_field))
 site_preds <- predict.fastTps(fit, xnew = sitepts_rms@coords) %>% exp()
 
-covars <- mutate(sites, intercept = 1, rms = site_preds) %>% 
+# Pulling in other covariates from otter model
+delta <- readRDS("../output/delta.rds")
+
+covars <- mutate(sites, 
+                 rms = site_preds,
+                 delta = delta[cells]) %>% 
   subset(site %in% colnames(otter_array)) %>% 
-  dplyr::select(intercept, Latitude, rms) %>% 
+  dplyr::select(Latitude, rms, delta) %>% 
   as.matrix()
 
 # Generating prediction locations, covariates, and distances ===================
 
 # Subset lambda by nearshore (and not NA)
-X <- readRDS("../data/lambda_covars.rds")
-lambda_near <- lambda.all[X[, 2] > 0]
-obs <- !is.na(rowSums(lambda_near))
-lambda_near <- lambda_near[obs, ]
+obs_nearshore = which(X[, 2] > 0 & !is.na(rowSums(lambda.all[])))
+lambda_near <- lambda.all[obs_nearshore]
 
 # Create prediction coordinates and align with RMS data
 predpts <- coordinates(lambda.all, spatial = TRUE) %>% 
-  magrittr::extract(X[, 2] > 0) %>% 
-  magrittr::extract(obs) %>% 
+  magrittr::extract(obs_nearshore) %>% 
   spTransform(wkt(rms_field))
 
 pred_lonlat <- spTransform(predpts, wkt(sitepts))@coords
@@ -113,7 +116,7 @@ pred_lonlat <- spTransform(predpts, wkt(sitepts))@coords
 pred_rms <- predict.fastTps(fit, xnew = predpts@coords) %>% exp()
 
 # Making full X at all prediction sites
-pred_covars <- cbind(1, pred_lonlat[, 2], pred_rms)
+pred_covars <- cbind(1, pred_lonlat[, 2], pred_rms, delta[obs_nearshore])
 
 # Computing distance matrices (using the current data CRS)
 wmatch <- sites$site %in% colnames(otter_array)
@@ -132,8 +135,7 @@ sites <- mutate(sites,
 counts <- subset(counts, site %in% colnames(otter_array))
 
 pred_sites <- coordinates(lambda.all) %>% 
-  magrittr::extract(X[, 2] > 0, ) %>% 
-  magrittr::extract(obs, )
+  magrittr::extract(obs_nearshore, )
 
 Boundaries <- readRDS("../data/Boundaries.rds")
 boundary <- rasterToPoints(Boundaries$BoundaryNA) %>% as.data.frame()
