@@ -1,9 +1,9 @@
 # Rosenzweig-MacArthur model of multi-site prey dynamics
 function prey_all!(du, u, p, t)
-	@unpack r, a, κ, K, λ = p
+	@unpack r, a, κ, ν, λ = p
 
 	for i in 1:length(u)
-		du[i] = r[i] * u[i] * (1.0 - u[i] / K) - a * λ[i](t) * u[i] ^ 2 / (u[i] ^ 2 + κ ^ 2)
+		du[i] = r[i] * u[i] - ν * u[i] ^ 2 - a[i] * λ[i](t) * u[i] ^ 2 / (u[i] ^ 2 + κ ^ 2)
 	end
 end
 
@@ -29,7 +29,7 @@ function process_pred(p, u0, m)
 
 	for i in 1:length(u0)
 
-		site_p = DEparams([p.r[i]], p.a, p.κ, p.K, [p.λ[i]])
+		site_p = DEparams([p.r[i]], p.a, p.κ, p.ν, [p.λ[i]])
 
 		prob = ODEProblem(prey_all!, [u0[i]], tspan, site_p)
 

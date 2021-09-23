@@ -69,17 +69,18 @@ end
 # Sample prey population growth rate
 function sample_r!(pars, m)
 
-	@unpack η_r, r, accept_r, u0, a, κ, loglik, u, K, σ = pars
+	@unpack r, η_r, accept_r, a, κ, loglik, u, ν, σ, u0, η_0 = pars
 	@unpack λ, η_r_prior, r_tune, N, T = m
 
 	# Proposal
 	forward_prop = MvNormal(η_r, r_tune)
 	η_r_star = rand(forward_prop)
 	r_star = exp.(η_r_star)
+	u0_star = logistic.(η_0) .* r_star ./ ν
 
 	# Proposal process model
-	p_star =  DEparams(r_star, a, κ, K, λ)
-	u_star = process_all(p_star, u0, m)
+	p_star =  DEparams(r_star, a, κ, ν, λ)
+	u_star = process_all(p_star, u0_star, m)
 
 	# Proposal likelihood
 	if size(u_star, 1) < T
@@ -101,6 +102,7 @@ function sample_r!(pars, m)
 		η_r = η_r_star
 		r = r_star
 		u = u_star
+		u0 = u0_star
 		loglik = loglik_star
 	end
 
@@ -110,16 +112,16 @@ end
 # Sample attack rate
 function sample_a!(pars, m)
 
-	@unpack r, accept_a, u0, a, κ, loglik, u, K, σ = pars
-	@unpack λ, a_tune, a_prior, N, T = m
+	@unpack r, accept_a, u0, a, η_a, κ, loglik, u, ν, σ = pars
+	@unpack λ, a_tune, η_a_prior, N, T = m
 
 	# Proposal
-	forward_prop = truncated(Normal(a, a_tune), 0.0, Inf)
-	a_star = rand(forward_prop)
-	back_prop = truncated(Normal(a_star, a_tune), 0.0, Inf)
+	forward_prop = MvNormal(η_a, a_tune)
+	η_a_star = rand(forward_prop)
+	a_star = exp.(η_a_star)
 
 	# Proposal process model
-	p_star =  DEparams(r, a_star, κ, K, λ)
+	p_star =  DEparams(r, a_star, κ, ν, λ)
 	u_star = process_all(p_star, u0, m)
 
 	# Proposal likelihood
@@ -130,8 +132,8 @@ function sample_a!(pars, m)
 	end
 
 	# Computing the MH ratio
-	mh1 = loglik_star + logpdf(a_prior, a_star)  + logpdf(back_prop, a)
-	mh2 = loglik + logpdf(a_prior, a) + logpdf(forward_prop, a_star)
+	mh1 = loglik_star + logpdf(η_a_prior, η_a_star)
+	mh2 = loglik + logpdf(η_a_prior, η_a)
 
 	# Accept/reject
 	prob = exp(mh1 - mh2)
@@ -140,17 +142,18 @@ function sample_a!(pars, m)
 	else
 		accept_a = 1
 		a = a_star
+		η_a = η_a_star
 		u = u_star
 		loglik = loglik_star
 	end
 
-	@pack! pars = a, accept_a, u, loglik
+	@pack! pars = a, η_a, accept_a, u, loglik
 end
 
 # Sample functional response saturation constant
 function sample_κ!(pars, m)
 
-	@unpack r, accept_κ, u0, a, κ, loglik, u, K, σ = pars
+	@unpack r, accept_κ, u0, a, κ, loglik, u, ν, σ = pars
 	@unpack λ, κ_tune, κ_prior, N, T = m
 
 	# Proposal
@@ -159,7 +162,7 @@ function sample_κ!(pars, m)
 	back_prop = truncated(Normal(κ_star, κ_tune), 0.0, Inf)
 
 	# Proposal process model
-	p_star =  DEparams(r, a, κ_star, K, λ)
+	p_star =  DEparams(r, a, κ_star, ν, λ)
 	u_star = process_all(p_star, u0, m)
 
 	# Proposal likelihood
@@ -187,19 +190,19 @@ function sample_κ!(pars, m)
 	@pack! pars = κ, accept_κ, u, loglik
 end
 
-function sample_K!(pars, m)
+function sample_ν!(pars, m)
 
-	@unpack r, K, accept_K, u0, a, κ, loglik, u, η_0, σ = pars
-	@unpack λ, K_tune, K_prior, N, T = m
+	@unpack r, ν, accept_ν, u0, a, κ, loglik, u, σ, η_0 = pars
+	@unpack λ, ν_tune, ν_prior, N, T = m
 
 	# Proposal
-	forward_prop = truncated(Normal(K, K_tune), 0.0, Inf)
-	K_star = rand(forward_prop)
-	back_prop = truncated(Normal(K_star, K_tune), 0.0, Inf)
+	forward_prop = truncated(Normal(ν, ν_tune), 0.0, Inf)
+	ν_star = rand(forward_prop)
+	back_prop = truncated(Normal(ν_star, ν_tune), 0.0, Inf)
 
 	# Proposal process model
-	p_star =  DEparams(r, a, κ, K_star, λ)
-	u0_star = K_star * logistic.(η_0)
+	p_star =  DEparams(r, a, κ, ν_star, λ)
+	u0_star = logistic.(η_0) .* r ./ ν_star
 	u_star = process_all(p_star, u0_star, m)
 
 	# Proposal likelihood
@@ -210,37 +213,37 @@ function sample_K!(pars, m)
 	end
 
 	# Computing the MH ratio
-	mh1 = loglik_star + logpdf(K_prior, K_star) + logpdf(back_prop, K)
-	mh2 = loglik + logpdf(K_prior, K) + logpdf(forward_prop, K_star)
+	mh1 = loglik_star + logpdf(ν_prior, ν_star) + logpdf(back_prop, ν)
+	mh2 = loglik + logpdf(ν_prior, ν) + logpdf(forward_prop, ν_star)
 
 	# Accept/reject
 	prob = exp(mh1 - mh2)
 	if rand() > prob
-		accept_K = 0
+		accept_ν = 0
 	else
-		accept_K = 1
-		K = K_star
+		accept_ν = 1
+		ν = ν_star
 		u = u_star
 		u0 = u0_star
 		loglik = loglik_star
 	end
 
-	@pack! pars = K, accept_K, u, u0, loglik
+	@pack! pars = ν, accept_ν, u, u0, loglik
 end
 
 # Sample functional response saturation constant
 function sample_u0!(pars, m)
 
-	@unpack r, accept_u0, u0, η_0, a, κ, loglik, u, K, σ = pars
+	@unpack r, accept_u0, u0, η_0, a, κ, loglik, u, σ, ν = pars
 	@unpack λ, η_0_prior, u0_tune, N, T = m
 
 	# Proposal
 	forward_prop = MvNormal(η_0, u0_tune)
 	η_0_star = rand(forward_prop)
-	u0_star = K * logistic.(η_0_star)
+	u0_star = logistic.(η_0_star) .* r ./ ν
 
 	# Proposal process model
-	p =  DEparams(r, a, κ, K, λ)
+	p =  DEparams(r, a, κ, ν, λ)
 	u_star = process_all(p, u0_star, m)
 
 	# Proposal likelihood
@@ -274,13 +277,13 @@ end
 function sample_β_r!(pars, m)
 
 	@unpack η_r = pars
-	@unpack X, Ω_r, Ω_β_r, μ_β_r = m
+	@unpack X_r, Ω_r, Ω_β_r, μ_β_r = m
 
 	# Sample β_r
-	A = Symmetric(X' * Ω_r * X + Ω_β_r)
+	A = Symmetric(X_r' * Ω_r * X_r + Ω_β_r)
 	A_inv = inv(A)
 
-	b = X' * Ω_r * η_r + Ω_β_r * μ_β_r
+	b = X_r' * Ω_r * η_r + Ω_β_r * μ_β_r
 
 	β_r = rand(MvNormal(A_inv * b, A_inv))
 
@@ -289,20 +292,20 @@ function sample_β_r!(pars, m)
 end
 
 # Conjugate Gibbs updates of regression coefficients on K
-function sample_β_0!(pars, m)
+function sample_β_a!(pars, m)
 
-	@unpack η_0 = pars
-	@unpack X, Ω_0, Ω_β_0, μ_β_0 = m
+	@unpack η_a = pars
+	@unpack X_a, Ω_a, Ω_β_a, μ_β_a = m
 
 	# Sample β_r
-	A = Symmetric(X' * Ω_0 * X + Ω_β_0)
+	A = Symmetric(X_a' * Ω_a * X_a + Ω_β_a)
 	A_inv = inv(A)
 
-	b = X' * Ω_0 * η_0 + Ω_β_0 * μ_β_0
+	b = X_a' * Ω_a * η_a + Ω_β_a * μ_β_a
 
-	β_0 = rand(MvNormal(A_inv * b, A_inv))
+	β_a = rand(MvNormal(A_inv * b, A_inv))
 
-	@pack! pars = β_0
+	@pack! pars = β_a
 
 end
 
@@ -311,26 +314,27 @@ function mcmc(m, pars, keep_every, nburn, nmcmc)
 	nkeep = floor(Int64, nmcmc / keep_every)
 
 	chain = Dict(:r => fill(0.0, m.N, nkeep),
-				 :eta_r=> fill(0.0, m.N, nkeep),
-	             :a => fill(0.0, nkeep),
-				 :K => fill(0.0, nkeep),
+	             :a => fill(0.0, m.N, nkeep),
+				 :nu => fill(0.0, nkeep),
 				 :kappa => fill(0.0, nkeep),
 				 :sigma => fill(0.0, nkeep),
-				 :eta_0 => fill(0.0, m.N, nkeep),
 				 :u0 => fill(0.0, m.N, nkeep),
-				 :beta_r => fill(0.0, m.p, nkeep),
-				 :beta_0 => fill(0.0, m.p, nkeep),
+				 :beta_r => fill(0.0, 3, nkeep),
+				 :beta_a => fill(0.0, 3, nkeep),
+				 :eta_r => fill(0.0, m.N, nkeep),
+				 :eta_a => fill(0.0, m.N, nkeep),
+				 :eta_0 => fill(0.0, m.N, nkeep),
 	             :accept_r => fill(0, nkeep),
 				 :accept_a => fill(0, nkeep),
 				 :accept_kappa => fill(0, nkeep),
-				 :accept_K => fill(0, nkeep),
+				 :accept_nu => fill(0, nkeep),
 				 :accept_sigma => fill(0, nkeep),
 				 :accept_u0 => fill(0, nkeep),
 				 :u => fill(0.0, m.T, m.N, nkeep),
 				 :zpred => fill(0.0, m.T, m.N, nkeep))
 
 	# Initialize process and likelihood
-	p = DEparams(pars.r, pars.a, pars.κ, pars.K, m.λ)
+	p = DEparams(pars.r, pars.a, pars.κ, pars.ν, m.λ)
 	pars.u = process_all(p, pars.u0, m)
 	pars.loglik = likelihood(pars.u, pars.σ, m)
 
@@ -343,7 +347,7 @@ function mcmc(m, pars, keep_every, nburn, nmcmc)
 
 		# Sampling
 
-		sample_K!(pars, m)
+		sample_ν!(pars, m)
 
 		sample_a!(pars, m)
 
@@ -364,15 +368,15 @@ function mcmc(m, pars, keep_every, nburn, nmcmc)
 		end
 
 		# Sampling
-		sample_K!(pars, m)
+		sample_ν!(pars, m)
 
 		sample_a!(pars, m)
+
+		sample_β_a!(pars, m)
 
 		sample_κ!(pars, m)
 
 		sample_u0!(pars, m)
-
-		sample_β_0!(pars, m)
 
 		sample_r!(pars, m)
 
@@ -387,20 +391,21 @@ function mcmc(m, pars, keep_every, nburn, nmcmc)
 			idx = floor(Int64, i / keep_every)
 
 			chain[:r][:, idx] = pars.r
-			chain[:eta_r][:, idx] = pars.η_r
-			chain[:a][idx] = pars.a
-			chain[:K][idx] = pars.K
+			chain[:a][:, idx] = pars.a
+			chain[:nu][idx] = pars.ν
 			chain[:kappa][idx] = pars.κ
 			chain[:sigma][idx] = pars.σ
-			chain[:eta_0][:, idx] = pars.η_0
 			chain[:u0][:, idx] = pars.u0
 			chain[:beta_r][:, idx] = pars.β_r
-			chain[:beta_0][:, idx] = pars.β_0
+			chain[:beta_a][:, idx] = pars.β_a
+			chain[:eta_r][:, idx] = pars.η_r
+			chain[:eta_a][:, idx] = pars.η_a
+			chain[:eta_0][:, idx] = pars.η_0
 
 			chain[:accept_r][idx] = pars.accept_r
 			chain[:accept_a][idx] = pars.accept_a
 			chain[:accept_kappa][idx] = pars.accept_κ
-			chain[:accept_K][idx] = pars.accept_K
+			chain[:accept_nu][idx] = pars.accept_ν
 			chain[:accept_sigma][idx] = pars.accept_σ
 			chain[:accept_u0][idx] = pars.accept_u0
 
