@@ -157,9 +157,9 @@ function sample_κ!(pars, m)
 	@unpack λ, κ_tune, κ_prior, N, T = m
 
 	# Proposal
-	forward_prop = truncated(Normal(κ, κ_tune), 0.0, Inf)
+	forward_prop = Gamma(κ / κ_tune, κ_tune)
 	κ_star = rand(forward_prop)
-	back_prop = truncated(Normal(κ_star, κ_tune), 0.0, Inf)
+	back_prop = Gamma(κ_star / κ_tune, κ_tune)
 
 	# Proposal process model
 	p_star =  DEparams(r, a, κ_star, ν, λ)
@@ -196,9 +196,9 @@ function sample_ν!(pars, m)
 	@unpack λ, ν_tune, ν_prior, N, T = m
 
 	# Proposal
-	forward_prop = truncated(Normal(ν, ν_tune), 0.0, Inf)
+	forward_prop = Gamma(ν / ν_tune, ν_tune)
 	ν_star = rand(forward_prop)
-	back_prop = truncated(Normal(ν_star, ν_tune), 0.0, Inf)
+	back_prop = Gamma(ν_star / ν_tune, ν_tune)
 
 	# Proposal process model
 	p_star =  DEparams(r, a, κ, ν_star, λ)
