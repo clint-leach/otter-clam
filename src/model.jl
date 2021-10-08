@@ -88,11 +88,11 @@ end
 	η_0::Vector{Float64}
 
 	r::Vector{Float64}
-	η_r::Vector{Float64} = log.(r)
+	η_r::Vector{Float64} = r
 	β_r::Vector{Float64}
 
 	a::Vector{Float64}
-	η_a::Vector{Float64} = log.(a)
+	η_a::Vector{Float64} = r
 	β_a::Vector{Float64}
 
 	ν::Float64

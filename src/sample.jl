@@ -9,7 +9,7 @@ function likelihood(u, σ, m)
 	for i in 1:N
 		for t in 1:T
 			if !ismissing(z[1, t, i])
-				n = σ / (1 - σ) * u[t, i]
+				n = σ / (1 - σ) * u[t, i] + 1e-8
 				loglik += sum(logpdf.(NegativeBinomial(n, σ), z[1:nq[i], t, i]))
 			end
 		end
@@ -26,7 +26,7 @@ function sample_z!(pars, m)
 
 	for i in 1:N
 		for t in 1:T
-			n = σ / (1 - σ) * u[t, i]
+			n = σ / (1 - σ) * u[t, i] + 1e-8
 			z[t, i] = rand(NegativeBinomial(n, σ))
 		end
 	end
@@ -75,7 +75,7 @@ function sample_r!(pars, m)
 	# Proposal
 	forward_prop = MvNormal(η_r, r_tune)
 	η_r_star = rand(forward_prop)
-	r_star = exp.(η_r_star)
+	r_star = [η_r_star[i] > 0 ? η_r_star[i] : 0.0 for i in 1:N]
 	u0_star = logistic.(η_0) .* r_star ./ ν
 
 	# Proposal process model
@@ -118,7 +118,7 @@ function sample_a!(pars, m)
 	# Proposal
 	forward_prop = MvNormal(η_a, a_tune)
 	η_a_star = rand(forward_prop)
-	a_star = exp.(η_a_star)
+	a_star = [η_a_star[i] > 0 ? η_a_star[i] : 0.0 for i in 1:N]
 
 	# Proposal process model
 	p_star =  DEparams(r, a_star, κ, ν, λ)
@@ -353,8 +353,6 @@ function mcmc(m, pars, keep_every, nburn, nmcmc)
 
 		sample_κ!(pars, m)
 
-		sample_u0!(pars, m)
-
 		sample_r!(pars, m)
 
 		sample_σ!(pars, m)
@@ -375,8 +373,6 @@ function mcmc(m, pars, keep_every, nburn, nmcmc)
 		sample_β_a!(pars, m)
 
 		sample_κ!(pars, m)
-
-		sample_u0!(pars, m)
 
 		sample_r!(pars, m)
 
