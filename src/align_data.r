@@ -93,10 +93,9 @@ site_preds <- predict.fastTps(fit, xnew = sitepts_rms@coords) %>% exp()
 delta <- readRDS("../output/delta.rds")
 
 covars <- mutate(sites, 
-                 rms = site_preds,
-                 delta = delta[cells]) %>% 
+                 rms = site_preds) %>% 
   subset(site %in% colnames(otter_array)) %>% 
-  dplyr::select(Latitude, rms, delta) %>% 
+  dplyr::select(Latitude, rms) %>% 
   as.matrix()
 
 # Generating prediction locations, covariates, and distances ===================
@@ -116,7 +115,7 @@ pred_lonlat <- spTransform(predpts, wkt(sitepts))@coords
 pred_rms <- predict.fastTps(fit, xnew = predpts@coords) %>% exp()
 
 # Making full X at all prediction sites
-pred_covars <- cbind(1, pred_lonlat[, 2], pred_rms, delta[obs_nearshore])
+pred_covars <- cbind(pred_lonlat[, 2], pred_rms)
 
 # Computing distance matrices (using the current data CRS)
 wmatch <- sites$site %in% colnames(otter_array)
