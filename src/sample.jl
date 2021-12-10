@@ -76,7 +76,7 @@ function sample_r!(pars, m)
 	forward_prop = MvNormal(η_r, r_tune)
 	η_r_star = rand(forward_prop)
 	r_star = [η_r_star[i] > 0 ? η_r_star[i] : 0.0 for i in 1:N]
-	u0_star = logistic.(η_0) .* r_star ./ ν
+	u0_star = r_star ./ ν
 
 	# Proposal process model
 	p_star =  DEparams(r_star, a, κ, ν, λ)
@@ -231,48 +231,6 @@ function sample_ν!(pars, m)
 	@pack! pars = ν, accept_ν, u, u0, loglik
 end
 
-# Sample functional response saturation constant
-function sample_u0!(pars, m)
-
-	@unpack r, accept_u0, u0, η_0, a, κ, loglik, u, σ, ν = pars
-	@unpack λ, η_0_prior, u0_tune, N, T = m
-
-	# Proposal
-	forward_prop = MvNormal(η_0, u0_tune)
-	η_0_star = rand(forward_prop)
-	u0_star = logistic.(η_0_star) .* r ./ ν
-
-	# Proposal process model
-	p =  DEparams(r, a, κ, ν, λ)
-	u_star = process_all(p, u0_star, m)
-
-	# Proposal likelihood
-	if size(u_star, 1) < T
-		loglik_star = -Inf
-	else
-		loglik_star = likelihood(u_star, σ, m)
-	end
-
-	# Computing the MH ratio
-	mh1 = loglik_star + logpdf(η_0_prior, η_0_star)
-	mh2 = loglik + logpdf(η_0_prior, η_0)
-
-	# Accept/reject
-	prob = exp(mh1 - mh2)
-	if rand() > prob
-		accept_u0 = 0
-	else
-		accept_u0 = 1
-		η_0 = η_0_star
-		u0 = u0_star
-		u = u_star
-		loglik = loglik_star
-	end
-
-	@pack! pars = η_0, accept_u0, u0, u, loglik
-end
-
-
 # Conjugate Gibbs updates of regression coefficients on r
 function sample_β_r!(pars, m)
 
@@ -323,13 +281,11 @@ function mcmc(m, pars, keep_every, nburn, nmcmc)
 				 :beta_a => fill(0.0, size(m.X_a, 2), nkeep),
 				 :eta_r => fill(0.0, m.N, nkeep),
 				 :eta_a => fill(0.0, m.N, nkeep),
-				 :eta_0 => fill(0.0, m.N, nkeep),
 	             :accept_r => fill(0, nkeep),
 				 :accept_a => fill(0, nkeep),
 				 :accept_kappa => fill(0, nkeep),
 				 :accept_nu => fill(0, nkeep),
 				 :accept_sigma => fill(0, nkeep),
-				 :accept_u0 => fill(0, nkeep),
 				 :u => fill(0.0, m.T, m.N, nkeep),
 				 :zpred => fill(0.0, m.T, m.N, nkeep))
 
@@ -396,14 +352,12 @@ function mcmc(m, pars, keep_every, nburn, nmcmc)
 			chain[:beta_a][:, idx] = pars.β_a
 			chain[:eta_r][:, idx] = pars.η_r
 			chain[:eta_a][:, idx] = pars.η_a
-			chain[:eta_0][:, idx] = pars.η_0
 
 			chain[:accept_r][idx] = pars.accept_r
 			chain[:accept_a][idx] = pars.accept_a
 			chain[:accept_kappa][idx] = pars.accept_κ
 			chain[:accept_nu][idx] = pars.accept_ν
 			chain[:accept_sigma][idx] = pars.accept_σ
-			chain[:accept_u0][idx] = pars.accept_u0
 
 			chain[:u][:, :, idx] = pars.u
 			chain[:zpred][:, :, idx] = pars.z

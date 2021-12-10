@@ -57,16 +57,6 @@
 
 	a_tune
 
-	# u0 spatial prior
-	μ_η_0
-	σ_0
-	ρ_0
-	Σ_0 = PDMat(σ_0 ^ 2 * exp.(-0.5 * (Doo ./ ρ_0)))
-	Ω_0 = inv(Σ_0)
-	η_0_prior = MvNormal(fill(μ_η_0, N), Σ_0)
-
-	u0_tune
-
 	# Prediction components
 	X_r_all
 	X_a_all
@@ -85,21 +75,19 @@ end
 
 @with_kw mutable struct parameters
 
-	η_0::Vector{Float64}
-
 	r::Vector{Float64}
 	η_r::Vector{Float64} = r
 	β_r::Vector{Float64}
 
 	a::Vector{Float64}
-	η_a::Vector{Float64} = r
+	η_a::Vector{Float64} = a
 	β_a::Vector{Float64}
 
 	ν::Float64
 	κ::Float64
 	σ::Float64
 
-	u0::Vector{Float64} =  logistic.(η_0) .* r ./ ν
+	u0::Vector{Float64} =   r ./ ν
 	u::Matrix{Float64}
 	z::Matrix{Float64}
 	loglik::Float64
@@ -109,7 +97,6 @@ end
 	accept_κ::Int64 = 0
 	accept_ν::Int64 = 0
 	accept_σ::Int64 = 0
-	accept_u0::Int64 = 0
 
 end
 
