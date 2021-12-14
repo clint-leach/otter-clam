@@ -69,7 +69,7 @@ end
 # Sample prey population growth rate
 function sample_r!(pars, m)
 
-	@unpack r, η_r, accept_r, a, κ, loglik, u, ν, σ, u0, η_0 = pars
+	@unpack r, η_r, accept_r, a, κ, loglik, u, ν, σ, u0 = pars
 	@unpack λ, η_r_prior, r_tune, N, T = m
 
 	# Proposal
@@ -192,7 +192,7 @@ end
 
 function sample_ν!(pars, m)
 
-	@unpack r, ν, accept_ν, u0, a, κ, loglik, u, σ, η_0 = pars
+	@unpack r, ν, accept_ν, u0, a, κ, loglik, u, σ = pars
 	@unpack λ, ν_tune, ν_prior, N, T = m
 
 	# Proposal
@@ -202,7 +202,7 @@ function sample_ν!(pars, m)
 
 	# Proposal process model
 	p_star =  DEparams(r, a, κ, ν_star, λ)
-	u0_star = logistic.(η_0) .* r ./ ν_star
+	u0_star = r ./ ν_star
 	u_star = process_all(p_star, u0_star, m)
 
 	# Proposal likelihood
