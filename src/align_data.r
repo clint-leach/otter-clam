@@ -2,56 +2,24 @@ library(raster)
 library(xtable)
 library(plyr)
 library(reshape2)
-library(fields)
-library(spam64)
 library(magrittr)
 
 # Loading in infauna sampling data =============================================
 
-# Processed avg biomass data (which informs sampling)
-biomass <- read.csv("../data/intertidal_prey.csv") %>% 
-  subset(!site  %in% c("FrancisE", "GeikieE", "DrakeE", "LesterE", "NetlandE", 
-                       "StrawberryE", "WhidbeyE", "JohnsonE"))
+# Raw data (subset to SAG and sites with location data)
+counts <- read.csv("../output/zero_augmented.csv") %>% 
+  subset(spp == "SAG") %>% 
+  subset(site != "18") %>% 
+  ddply(.(site, year, quad), summarise,
+        total = sum(count))
 
-# Creating a summary table of all the sites and their locations
-sites <- ddply(biomass, .(site), summarise, 
-               Longitude = Longitude[1], 
-               Latitude = Latitude[1],
-               subtidal = type[1] == "subtidal",
-               nquad = subtidal * 10 + 10)
-
-# Years each site was sampled
-years <- ddply(biomass, .(site), summarise,
-               year = unique(Year))
-
-# Filling in quadrats
-quadrats <- ddply(sites, .(site), summarise,
-                  quad  = 1:nquad)
-
-# Raw count by size and quadrat data for Saxidomus giganteus
-counts_wide <- read.csv("../data/SAG_count.csv")
-
-# Processing data to get total by site, quadrat, and year
-sample_info <- dplyr::select(counts_wide, c("TypeSiteYearSiteQuadTaxa", "type", "year", "site", "quad", "Taxa")) %>% 
-  dplyr::rename(sample_id = TypeSiteYearSiteQuadTaxa)
-
-counts <- counts_wide[, 2:115] %>% as.matrix() %>% 
-  melt(varnames = c("sample_id", "size"), value.name = "count") %>% 
-  mutate(sample_id = sample_info$sample_id[sample_id], 
-         size = substring(size, 2) %>% as.numeric,
-         biomass = count * 0.000214 * size ^ 2.78) %>% 
-  join(sample_info) %>% 
-  ddply(.(year, site, quad), summarise, 
-              total = sum(count))
-
-# Filling in zeros
-counts <- join(years, quadrats) %>% 
-  join(counts) %>% 
-  mutate(total = ifelse(is.na(total), 0, total))
+# Sampling Sites 
+sites <- read.csv("../output/sites.csv") %>% 
+  subset(!is.na(latitude))
 
 # Making spatial points object from site list 
 crdref <- CRS(SRS_string = "EPSG:4269")
-sitepts <- SpatialPoints(dplyr::select(sites, Longitude, Latitude), proj4string = crdref)
+sitepts <- SpatialPoints(dplyr::select(sites, longitude, latitude), proj4string = crdref)
 
 # Extracting lambda at each clam site ==========================================
 
@@ -132,8 +100,6 @@ sites <- mutate(sites,
                 y = sitepts_lambda@coords[, 2]) %>% 
   subset(site %in% colnames(otter_array))
 
-counts <- subset(counts, site %in% colnames(otter_array))
-
 pred_sites <- coordinates(lambda.all) %>% 
   magrittr::extract(obs_nearshore, )
 
@@ -146,7 +112,6 @@ datalist <- list(lambda = otter_array,
                  X = covars,
                  X_all = pred_covars,
                  lambda_all = t(lambda_near),
-                 byquad = counts,
                  obs_sites = sites,
                  pred_sites = pred_sites,
                  Doo = site_to_site,
@@ -155,4 +120,4 @@ datalist <- list(lambda = otter_array,
                  bay_bound = boundary)
 
 # And saving
-saveRDS(datalist, "../data/all.rds")
+saveRDS(datalist, "../output/all.rds")
