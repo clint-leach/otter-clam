@@ -7,7 +7,7 @@
 	λ
 	X_r
 	X_a
-	nq
+	nq = size(z, 1)
 	T = size(z, 2)
 	N = size(z, 3)
 	tspan = (1.0, Float64(T))

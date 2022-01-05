@@ -8,9 +8,15 @@ function likelihood(u, σ, m)
 
 	for i in 1:N
 		for t in 1:T
-			if !ismissing(z[1, t, i])
-				n = σ / (1 - σ) * u[t, i] + 1e-8
-				loglik += sum(logpdf.(NegativeBinomial(n, σ), z[1:nq[i], t, i]))
+			for j in 1:nq
+				if !ismissing(z[j, t, i])
+					n = σ / (1 - σ) * u[t, i]
+					if n > 0
+						loglik += logpdf.(NegativeBinomial(n, σ), z[j, t, i])
+					elseif (n == 0) & (z[j, t, i] > 0)
+						loglik += -Inf
+					end
+				end
 			end
 		end
 	end
