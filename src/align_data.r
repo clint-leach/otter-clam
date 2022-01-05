@@ -81,24 +81,23 @@ rms_field <- raster("../data/current/w001001.adf") %>%
   crop(lambda.all)
 
 rms_pts <- rasterToPoints(rms_field, spatial = TRUE)
-
-# Kriging with 'fields' package with compact covar function
-fit <- fastTps(rms_pts@coords, log(rms_pts@data), lon.lat = FALSE, lambda = 0, theta = 400, k = 2)
-
-# Predicting current speed at clam sites
 sitepts_rms <- spTransform(sitepts, wkt(rms_field))
-site_preds <- predict.fastTps(fit, xnew = sitepts_rms@coords) %>% exp()
 
-# Pulling in other covariates from otter model
-delta <- readRDS("../output/delta.rds")
+# Find and extract closest current layer cell to each of the sample sites
+dists <- pointDistance(rms_pts, sitepts_rms)
+closest <- apply(dists, 2, which.min)
+site_preds <- rms_pts@data[closest, 1]
 
 covars <- mutate(sites, 
                  rms = site_preds) %>% 
   subset(site %in% colnames(otter_array)) %>% 
-  dplyr::select(Latitude, rms) %>% 
+  dplyr::select(latitude, rms) %>% 
   as.matrix()
 
 # Generating prediction locations, covariates, and distances ===================
+
+# Loading in otter covariates
+X <- readRDS("../data/lambda_covars.rds")
 
 # Subset lambda by nearshore (and not NA)
 obs_nearshore = which(X[, 2] > 0 & !is.na(rowSums(lambda.all[])))
@@ -111,8 +110,10 @@ predpts <- coordinates(lambda.all, spatial = TRUE) %>%
 
 pred_lonlat <- spTransform(predpts, wkt(sitepts))@coords
 
-# Generate kriged predictions for each of the prediction sites
-pred_rms <- predict.fastTps(fit, xnew = predpts@coords) %>% exp()
+# Extracting current speed from nearest raster cell
+dists <- pointDistance(rms_pts, predpts)
+closest <- apply(dists, 2, which.min)
+pred_rms <- rms_pts@data[closest, 1]
 
 # Making full X at all prediction sites
 pred_covars <- cbind(pred_lonlat[, 2], pred_rms)
