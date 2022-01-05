@@ -7,7 +7,6 @@ function predict(chain, m)
     r_pred = fill(0.0, npred, nmcmc)
     a_pred = fill(0.0, npred, nmcmc)
     u_pred = fill(0.0, T, npred, nmcmc)
-    flux_pred = fill(0.0, T, npred, nmcmc)
 
     Σ_pred_r = PDMat(Symmetric(m.Σuu_r - m.Σuo_r * m.Ω_r * m.Σuo_r'))
     Σ_pred_a = PDMat(Symmetric(m.Σuu_a - m.Σuo_a * m.Ω_a * m.Σuo_a'))
@@ -41,24 +40,15 @@ function predict(chain, m)
         p =  DEparams(r, a, κ, ν, λ_all)
         u = process_pred(p, u0, m)
 
-        flux = similar(u)
-        for j in 1:npred
-            for t in 1:T
-                flux[t, j] = a[j] * u[t, j] ^ 2 * λ_all[j](t)  / (u[t, j] ^ 2 + κ ^ 2)
-            end
-        end
-
         # Compute running means of r, u, and flux
         r_pred[:, i] = r #r_pred + 1.0 / nmcmc * r
         a_pred[:, i] = a #a_pred + 1.0 / nmcmc * a
         u_pred[:, :, i] = u #log_u_pred + 1.0 / nmcmc * log.(u)
-        flux_pred[:, :, i] = flux #flux_pred + 1.0 / nmcmc * flux
     end
 
     preds = Dict(:r => r_pred,
                  :a => a_pred,
-                 :u => u_pred,
-                 :flux => flux_pred)
+                 :u => u_pred)
 
     return preds
 end
