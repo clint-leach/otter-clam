@@ -16,7 +16,7 @@ include("sample.jl")
 include("predict.jl")
 
 # Reading in data
-R"data <- readRDS('data/all.rds')"
+R"data <- readRDS('output/all.rds')"
 @rget data
 
 # Reading in sea otter forcing time series
@@ -52,16 +52,14 @@ M = size(data[:lambda_all], 2)
 m = model(z = sag,
           λ = λ,
 		  X_r = hcat(fill(1.0, N), X[:, 1:2], X[:, 2] .^ 2),
-		  X_a = hcat(fill(1.0, N), X[:, 2], X[:, 2] .^ 2),
-		  nq = Int64.(data[:obs_sites][!, :nquad]),
+		  X_a = hcat(fill(1.0, N), X[:, 2]),
 		  κ_prior = Gamma(5, 6),
 		  ν_prior = Gamma(0.1, 0.1),
 		  σ_prior = Beta(4, 1), 
 		  Ω_β_r = PDiagMat([1.0, 1.0, 1.0, 1.0]),
 		  μ_β_r = [0.0, 0.0, 0.0, 0.0],
-		  Ω_β_a = PDiagMat([0.01, 0.01, 0.01]),
-		  μ_β_a = [5.0, 0.0, 0.0],
-		  μ_η_0 = 3.0,
+		  Ω_β_a = PDiagMat([0.01, 0.01]),
+		  μ_β_a = [5.0, 0.0],
 		  Doo = data[:Doo],
 		  Duu = data[:Duu],
 		  Duo = data[:Duo],
@@ -69,21 +67,17 @@ m = model(z = sag,
 		  ρ_a = 1000.0,
 		  σ_r = 1.0,
 		  ρ_r = 1000.0,
-		  σ_0 = 0.1,
-		  ρ_0 = 1000.0,
 		  X_r_all = hcat(fill(1.0, M), X_all[:, 1:2], X_all[:, 2] .^ 2),
-		  X_a_all = hcat(fill(1.0, M), X_all[:, 2], X_all[:, 2] .^ 2),
+		  X_a_all = hcat(fill(1.0, M), X_all[:, 2]),
 		  λ_all = λ_all,
 		  κ_tune = 0.2,
-		  ν_tune = 0.0003,
+		  ν_tune = 0.0005,
 		  σ_tune = 0.02,
-		  a_tune = ScalMat(N, 0.2),
-		  r_tune = ScalMat(N, 1e-5),
-		  u0_tune = ScalMat(N, 0.08)
+		  a_tune = ScalMat(N, 0.1),
+		  r_tune = ScalMat(N, 1e-4),
 		  )
 
-pars = parameters(η_0 = fill(4.0, m.N),
-	              r = fill(0.1, m.N),
+pars = parameters(r = fill(0.1, m.N),
 				  β_r = [0.0, 0.0, 0.0, 0.0],
 				  a = fill(5.0, m.N),
 				  β_a = [0.0, 0.0, 0.0, 0.0],
@@ -96,6 +90,9 @@ pars = parameters(η_0 = fill(4.0, m.N),
 
 # Running MCMC chain
 chain = mcmc(m, pars, 10, 250000, 250000)
+
+R"chain = readRDS('output/updated_chain.rds')"
+@rget chain
 
 # Generating predictions over whole nearshore
 preds =  predict(chain, m)
