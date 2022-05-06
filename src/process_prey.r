@@ -11,8 +11,8 @@ sites <- read.csv('../data/site_samples.csv') %>%
                                         "Selected \"High Clam Densities\"" = "Selected",
                                         "Selected Clam Beds" = "Selected",
                                         "Selected Clam Beds - not resampled" = "Selected")) %>% 
-  dplyr::rename(site = Site.Name) %>%  
-  ddply(.(site), summarise, 
+  dplyr::rename(site_name = Site.Name) %>%  
+  ddply(.(site_name), summarise, 
         latitude = Latitude[1],
         longitude = Longitude[1],
         site_selection = site_selection[1],
@@ -22,7 +22,7 @@ sites <- read.csv('../data/site_samples.csv') %>%
   mutate(latitude = as.numeric(latitude), 
          longitude = as.numeric(longitude))
 
-# Raw data (reading in 'GlacierBayPreyData2021' sheet of Xcel file, exponrted as a csv)
+# Raw data (reading in 'GlacierBayPreyData2021' sheet of Xcel file, exported as a csv)
 raw <- read.csv("../data/prey_data.csv") 
 
 # Species table
@@ -32,26 +32,26 @@ spp <- ddply(raw, .(spp), summarise,
   subset(spp != "NON")
 
 # Summing over duplicate rows
-raw <- ddply(raw, .(site, year, quad, spp, size), summarise,
+raw <- ddply(raw, .(site_name, year, quad, spp, size), summarise,
              count = sum(count))
 
 # List of quadrats for each sampling event
-quad <- ddply(raw, .(site, year), summarise,
+quad <- ddply(raw, .(site_name, year), summarise,
               quad = unique(quad))  
 
 # Size range observed for each species
 sizes <- ddply(raw, .(spp), summarise,
                max = max(size, na.rm = T)) %>% 
   ddply(.(spp), summarise,
-        size = 13:max)
+        size = 14:max)
 
 observables <- ddply(sizes, .(spp, size), summarise,
-                     site = sites$site) %>% 
+                     site_name = sites$site_name) %>% 
   join(quad)
 
 # Checking for unsampled quadrats (to cross-reference with known missings)
 observables %>% 
-  ddply(.(site, year), summarise,
+  ddply(.(site_name, year), summarise,
         nquad = length(unique(quad))) %>% 
   subset(!nquad %in% c(10, 20))
 
