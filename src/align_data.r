@@ -6,16 +6,21 @@ library(magrittr)
 
 # Loading in infauna sampling data =============================================
 
-# Raw data (subset to SAG and sites with location data)
-counts <- read.csv("../output/zero_augmented.csv") %>% 
-  subset(spp == "SAG") %>% 
-  subset(site != "18") %>% 
-  ddply(.(site, year, quad), summarise,
+# Raw data , downloaded from https://doi.org/10.5066/P9LODH0Z and stored in 'data' directory
+counts <- read.csv("../data/seaotter_preySampling_zeroPopulated_glacierbay_2022.csv") %>% 
+  subset(species_code == "LES") %>% 
+  ddply(.(site_name, year, quad), summarise,
         total = sum(count))
 
 # Sampling Sites 
-sites <- read.csv("../output/sites.csv") %>% 
-  subset(!is.na(latitude))
+sites <- read.csv("../data/seaotter_preySampling_sites_glacierbay_2022.csv") %>% 
+  ddply(.(site_name), summarise, 
+        latitude = latitude[1],
+        longitude = longitude[1],
+        site_selection = site_selection[1],
+        site_zone = site_zone[1],
+        nsamples = length(year))
+
 
 # Making spatial points object from site list 
 crdref <- CRS(SRS_string = "EPSG:4269")
@@ -34,14 +39,14 @@ cells <- raster::extract(lambda.all, sitepts_lambda, cellnumbers = TRUE)[, 1]
 lambda <- raster::extract(lambda.all, sitepts_lambda)
 colnames(lambda) <- c(1993:2018)
 
-lambda <- melt(lambda, varnames = c("site", "year"), value.name = "lambda") %>% 
-  mutate(site = sites$site[site]) %>% 
+lambda <- melt(lambda, varnames = c("site_name", "year"), value.name = "lambda") %>% 
+  mutate(site_name = sites$site_name[site_name]) %>% 
   subset(!is.na(lambda))
 
 joint <- join(lambda, counts)
 
-SAG_array <- reshape2::acast(joint, quad ~ year ~ site, value.var = "total")[1:20, , ]
-otter_array <- reshape2::acast(lambda, year ~ site, value.var = "lambda")
+SAG_array <- reshape2::acast(joint, quad ~ year ~ site_name, value.var = "total")[1:20, , ]
+otter_array <- reshape2::acast(lambda, year ~ site_name, value.var = "lambda")
 
 # Loading in and extracting current speed at each infauna site =================
 
@@ -58,7 +63,7 @@ site_preds <- rms_pts@data[closest, 1]
 
 covars <- mutate(sites, 
                  rms = site_preds) %>% 
-  subset(site %in% colnames(otter_array)) %>% 
+  subset(site_name %in% colnames(otter_array)) %>% 
   dplyr::select(latitude, rms) %>% 
   as.matrix()
 
@@ -98,7 +103,7 @@ preds_to_preds <- pointDistance(predpts, predpts, lonlat = FALSE, allpairs = TRU
 sites <- mutate(sites, 
                 x = sitepts_lambda@coords[, 1], 
                 y = sitepts_lambda@coords[, 2]) %>% 
-  subset(site %in% colnames(otter_array))
+  subset(site_name %in% colnames(otter_array))
 
 pred_sites <- coordinates(lambda.all) %>% 
   magrittr::extract(obs_nearshore, )
