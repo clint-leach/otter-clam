@@ -8,7 +8,7 @@ library(magrittr)
 
 # Raw data , downloaded from https://doi.org/10.5066/P9LODH0Z and stored in 'data' directory
 counts <- read.csv("../data/seaotter_preySampling_zeroPopulated_glacierbay_2022.csv") %>% 
-  subset(species_code == "LES") %>% 
+  subset(species_code == "SAG") %>% 
   ddply(.(site_name, year, quad), summarise,
         total = sum(count))
 
@@ -92,7 +92,7 @@ pred_rms <- rms_pts@data[closest, 1]
 pred_covars <- cbind(pred_lonlat[, 2], pred_rms)
 
 # Computing distance matrices (using the current data CRS)
-wmatch <- sites$site %in% colnames(otter_array)
+wmatch <- sites$site_name %in% colnames(otter_array)
 site_to_site <- pointDistance(sitepts_rms, sitepts_rms, lonlat = FALSE, allpairs = TRUE)[wmatch, wmatch]
 preds_to_sites <- pointDistance(predpts, sitepts_rms, lonlat = FALSE, allpairs = TRUE)[, wmatch]
 preds_to_preds <- pointDistance(predpts, predpts, lonlat = FALSE, allpairs = TRUE)
