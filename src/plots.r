@@ -5,6 +5,7 @@ library(plyr)
 library(magrittr)
 library(reshape2)
 library(gganimate)
+library(ggsn)
 
 # Reading in data
 all <- readRDS('../output/all.rds')
@@ -13,43 +14,43 @@ all <- readRDS('../output/all.rds')
 ordered <- all$obs_sites
 
 ordered$region <- NA
-ordered$region[ordered$site %in% c("Rush_PCH", "71", "67", "Berg", "Berg_PCH", "PCH_230", "Fingers", "Fingers_PCH")] <- 1
-ordered$region[ordered$site %in% c("86", "Geikie_PCH", "Geikie", "BlueMouse", "Strawberry", "Boulder_PCH", "Johnson", "Drake")] <- 2
-ordered$region[ordered$site %in% c("58", "55", "Secret", "Secret_PCH", "52", "233", "Triangle_PCH", "229")] <- 3
-ordered$region[ordered$site %in% c("249", "243", "46", "40", "43", "Sealers", "170", "211")] <- 4
-ordered$region[ordered$site %in% c("Leland", "221", "Sturgess", "Puffin", "30")] <- 5
+ordered$region[ordered$site_name %in% c("Rush_PCH", "71", "67", "Berg", "Berg_PCH", "PCH_230", "Fingers", "Fingers_PCH")] <- 1
+ordered$region[ordered$site_name %in% c("86", "Geikie_PCH", "Geikie", "BlueMouse", "Strawberry", "Boulder_PCH", "Johnson", "Drake")] <- 2
+ordered$region[ordered$site_name %in% c("58", "55", "Secret", "Secret_PCH", "52", "233", "Triangle_PCH", "229")] <- 3
+ordered$region[ordered$site_name %in% c("249", "243", "46", "40", "43", "Sealers", "170", "211")] <- 4
+ordered$region[ordered$site_name %in% c("Leland", "221", "Sturgess", "Puffin", "30")] <- 5
 
 ordered <- arrange(ordered, region, desc(latitude))
 
 # S. giganteus data
 sag <- all$y %>% 
-  melt(varnames = c("quad", "year", "site"), value.name = "count") %>% 
-  mutate(site = factor(site, levels = ordered$site))
+  melt(varnames = c("quad", "year", "site_name"), value.name = "count") %>% 
+  mutate(site_name = factor(site_name, levels = ordered$site_name))
 
 # Otter data  
 data <-all$lambda %>% 
-  melt(varnames = c("year", "site"), value.name = "lambda")
+  melt(varnames = c("year", "site_name"), value.name = "lambda")
 
 # Years and sites
 years <- unique(data$year)
-site_names <- unique(data$site)
+site_names <- unique(data$site_name)
 
 # Bay boundary raster, for plotting
 boundary <- all$bay_bound
 
 # Reading in output
-post <- readRDS("../output/updated_chain.rds")
+post <- readRDS("../output/chain.rds")
 
 # Figure1: Map of site locations ===============================================
 
 nearshore <- as.data.frame(all$pred_sites)
 
-nonzero <- ddply(sag, .(site), summarise,
+nonzero <- ddply(sag, .(site_name), summarise,
                  total = sum(count, na.rm = T)) %>% 
   subset(total > 0)
 
-left <- subset(all$obs_sites, x < median(all$obs_sites$x) & site %in% nonzero$site)
-right <- subset(all$obs_sites, x > median(all$obs_sites$x) & site %in% nonzero$site)
+left <- subset(all$obs_sites, x < median(all$obs_sites$x) & site_name %in% nonzero$site)
+right <- subset(all$obs_sites, x > median(all$obs_sites$x) & site_name %in% nonzero$site)
 
 pdf(file = "../output/figures/Figure1.pdf",
     width = 5.5, height = 4.5)
@@ -59,7 +60,7 @@ boundary %>%
   geom_raster(fill = "steelblue3", alpha = 0.5) +
   geom_point(aes(x, y), data = nearshore, pch = 20, size = 0.1, color = "gray50", inherit.aes = FALSE) +
   geom_point(aes(x, y), data = all$obs_sites, size = 0.5, pch = 4) +
-  geom_text_repel(aes(x, y, label = site), data = left,
+  geom_text_repel(aes(x, y, label = site_name), data = left,
                   size = 2.0, 
                   max.overlaps = Inf,
                   direction = "y", 
@@ -70,7 +71,7 @@ boundary %>%
                   box.padding = 0.2,
                   hjust = 0,
                   nudge_x = min(boundary$x) - 6000 - left$x) + 
-  geom_text_repel(aes(x, y, label = site), data = right,
+  geom_text_repel(aes(x, y, label = site_name), data = right,
                   size = 2.0, 
                   max.overlaps = Inf,
                   direction = "y", 
@@ -88,16 +89,20 @@ boundary %>%
         axis.text = element_blank(),
         axis.ticks = element_blank(),
         axis.line = element_blank()) +
-  coord_equal() 
+  coord_equal() +
+  north(x.min = min(boundary$x), x.max= max(boundary$x), y.min = min(boundary$y), y.max = max(boundary$y), symbol = 10, scale = 0.05) +
+  annotate("text", x = max(boundary$x) - 1400, y = max(boundary$y), label = "N", size = 2.0) + 
+  scalebar(x.min = min(boundary$x), x.max= max(boundary$x), y.min = min(boundary$y), y.max = max(boundary$y), 
+           dist = 5, dist_unit = "km", transform = FALSE, location = "bottomleft", st.size = 2.0, height = 0.02, border.size = 0.1)
 
 dev.off()
 
 # Figure 2: posterior preds of z ===============================================
 
 z <- post$z %>% 
-  melt(varnames = c("year", "site", "iter"), value.name = "abundance") %>% 
-  mutate(year = years[year], site = factor(site_names[site], levels = ordered$site)) %>% 
-  ddply(.(year, site), summarise,
+  melt(varnames = c("year", "site_name", "iter"), value.name = "abundance") %>% 
+  mutate(year = years[year], site_name = factor(site_names[site_name], levels = ordered$site_name)) %>% 
+  ddply(.(year, site_name), summarise,
         mean = mean(abundance),
         med = median(abundance),
         max = quantile(abundance, 0.95),
@@ -108,12 +113,12 @@ pdf(file = "../output/figures/Figure2.pdf",
     width = 6.5, height = 8)
 
 z %>% 
-  subset(site %in% nonzero$site) %>%
+  subset(site_name %in% nonzero$site_name) %>%
   ggplot(aes(year, mean)) + 
   geom_line() + 
   geom_ribbon(aes(ymin = min, ymax = max), alpha = 0.2) + 
-  geom_point(data = subset(sag, site %in% nonzero$site), inherit.aes = FALSE, aes(year, count), size = 0.25) +
-  facet_wrap(~as.factor(site), scales = "fixed", ncol = 5, dir = "v") + 
+  geom_point(data = subset(sag, site_name %in% nonzero$site_name), inherit.aes = FALSE, aes(year, count), size = 0.25) +
+  facet_wrap(~as.factor(site_name), scales = "fixed", ncol = 5, dir = "v") + 
   theme_classic() + 
   theme(strip.background = element_blank()) +
   theme(axis.text.x=element_text(angle=45, hjust=1)) + 
@@ -125,13 +130,14 @@ dev.off()
 # Plots of latent true biomass =================================================
 
 u <- post$u %>% 
-  melt(varnames = c("year", "site", "iter"), value.name = "abundance") %>% 
-  mutate(year = years[year], site = factor(site_names[site], levels = ordered$site)) %>% 
-  ddply(.(year, site), summarise,
+  melt(varnames = c("year", "site_name", "iter"), value.name = "abundance") %>% 
+  mutate(year = years[year], site_name = factor(site_names[site_name], levels = ordered$site_name)) %>% 
+  ddply(.(year, site_name), summarise,
         med = median(abundance),
         max = quantile(abundance, 0.975),
         min = quantile(abundance, 0.025)) %>% 
   join(cbind(all$obs_sites, all$X))
+
 
 # Time series by site
 u %>% 
@@ -139,7 +145,7 @@ u %>%
   geom_line() + 
   geom_ribbon(aes(ymin = min, ymax = max), alpha = 0.2) + 
   geom_point(data = sag, inherit.aes = FALSE, aes(year, count), size = 0.5) +
-  facet_wrap(~site, scales = "free_y", nrow = 10) + 
+  facet_wrap(~site_name, scales = "free_y", nrow = 10) + 
   theme_classic() + 
   theme(strip.background = element_blank()) +
   theme(axis.text.x=element_text(angle=45, hjust=1)) + 
@@ -148,7 +154,7 @@ u %>%
 
 # One-dimensional dynamics by site
 u %>% 
-  ggplot(aes(site, med, color = year)) + 
+  ggplot(aes(site_name, med, color = year)) + 
   geom_point() + 
   scale_color_viridis_c() + 
   theme_classic() +
@@ -172,22 +178,23 @@ joint <- join(data, u) %>%
   join(sag) %>% 
   join(all$obs_sites)
 
-joint <- mutate(joint, site = factor(site, levels = ordered$site))
+joint <- mutate(joint, site_name = factor(site_name, levels = ordered$site_name))
 
 
 joint %>% 
-  ggplot(aes(lambda, med, group = site)) + 
+  ggplot(aes(lambda, med, group = site_name)) + 
   geom_line(alpha = 0.8) +
   geom_ribbon(aes(ymin = min, ymax = max), alpha = 0.2) + 
-  # geom_point(aes(lambda, total), size = 2) +
   theme_classic() + 
-  facet_wrap(~site, scales = "fixed", nrow = 11)  +
+  facet_wrap(~site_name, scales = "free_y", nrow = 11)  +
   ylab("Biomass (g wet weight)")
 
 joint %>% 
-  ggplot(aes(lambda, med, group = site)) + 
-  geom_line(alpha = 0.2) +
-  geom_point(aes(size = year), alpha = 0.8) + 
+  subset(max > 0) %>% 
+  ggplot(aes(lambda, med, group = site_name)) + 
+  geom_line(alpha = 1.0) +
+  scale_color_viridis_c() +
+  geom_point(aes(size = year), alpha = 0.8) +
   scale_radius(range = c(0.1, 5)) + 
   theme_classic() + 
   ylab("Clam abundance") + 
@@ -195,28 +202,28 @@ joint %>%
 
 # Plotting site growth rates ==================================================
 
-covars <- cbind(all$obs_sites, all$X) %>% 
-  join(subset(data, year == 2018))
+covars <- cbind(all$obs_sites, all$X)
 
 r <- post$r %>% 
-  melt(varnames = c("site", "iter"), value.name = "r") %>% 
-  mutate(site = factor(site_names[site], levels = ordered$site))
+  melt(varnames = c("site_name", "iter"), value.name = "r") %>% 
+  mutate(site_name = factor(site_names[site_name], levels = ordered$site_name))
 
 # MCMC chains
 r %>% 
   ggplot(aes(iter, r)) + 
   geom_line() + 
-  facet_wrap(~site, scales = "free_y")
+  facet_wrap(~site_name, scales = "free_y")
 
 # Site summaries
-rsum <- ddply(r, .(site), summarise,
+rsum <- ddply(r, .(site_name), summarise,
               r_med = median(r),
+              r_sd = sd(r),
               r_low = quantile(r, 0.025),
               r_high =quantile(r, 0.975)) %>% 
   join(covars)
 
 rsum %>% 
-  ggplot(aes(site, r_med)) + 
+  ggplot(aes(site_name, r_med)) + 
   geom_point() + 
   geom_linerange(aes(ymin = r_low, ymax = r_high)) +
   scale_color_discrete() +
@@ -226,55 +233,60 @@ rsum %>%
 
 # Growth by covariates
 rsum %>% 
-  ggplot(aes(latitude, r_med, label = site)) + 
+  ggplot(aes(latitude, r_med, label = site_name)) + 
   geom_label() + 
   theme_classic() 
 
 rsum %>% 
-  ggplot(aes(rms, r_med, label = site)) + 
+  ggplot(aes(rms, r_med, label = site_name)) + 
   geom_label() + 
   theme_classic() 
 
 # Plotting site attack rates ==================================================
 
 a <- post$a %>% 
-  melt(varnames = c("site", "iter"), value.name = "a") %>% 
-  mutate(site = factor(site_names[site], levels = ordered$site))
+  melt(varnames = c("site_name", "iter"), value.name = "a") %>% 
+  mutate(site_name = factor(site_names[site_name], levels = ordered$site_name))
 
 # MCMC chains
 a %>% 
   ggplot(aes(iter, a)) + 
   geom_line() + 
-  facet_wrap(~site, scales = "free_y")
+  facet_wrap(~site_name, scales = "free_y")
+
+a %>% 
+  ggplot() +
+  geom_histogram(aes(a)) + 
+  facet_wrap(~site_name)
 
 # Site summaries
-asum <- ddply(a, .(site), summarise,
-              med = median(a),
-              low = quantile(a, 0.1),
-              high =quantile(a, 0.9)) %>% 
-  join(covars) %>% 
-  join(dplyr::select(rsum, site, r_med))
+asum <- ddply(a, .(site_name), summarise,
+              a_med = median(a),
+              a_sd = sd(a),
+              a_low = quantile(a, 0.1),
+              a_high =quantile(a, 0.9),
+              p_positive = mean(a > 0)) %>% 
+  join(covars)
 
 asum %>% 
-  ggplot(aes(site, med)) + 
+  ggplot(aes(site_name, a_med)) + 
   geom_point() + 
-  geom_linerange(aes(ymin = low, ymax = high)) +
+  geom_linerange(aes(ymin = a_low, ymax = a_high)) +
+  theme_classic() + 
+  theme(axis.text.x=element_text(angle=45, hjust=1)) + 
+  ylab("a")
+
+asum %>% 
+  ggplot(aes(site_name, p_positive)) + 
+  geom_point() + 
   theme_classic() + 
   theme(axis.text.x=element_text(angle=45, hjust=1)) + 
   ylab("a")
 
 
-# Attack rate by current
-asum %>% 
-  subset(r_med > 0) %>% 
-  ggplot(aes(rms, med, label = site)) + 
-  geom_label() + 
-  theme_classic() 
-
-
 # Figure 3: maps of r, a, current, and lambda ==================================
 
-pred <- readRDS("../output/prediction.rds")
+pred <- readRDS("../output/predictions.rds")
 
 current <- data.frame(all$pred_sites, current = all$X_all[, 2])
 
@@ -283,10 +295,12 @@ rpred <- pred$r %>%
   melt(varnames = c("site"), value.name = "r") %>% 
   cbind(all$pred_sites)
 
-apred <- pred$a %>% 
-  aaply(.(1), median) %>% 
-  melt(varnames = c("site"), value.name = "a") %>% 
+apred <- pred$a %>%
+  # aaply(.(1), function(x) mean(x > 0)) %>%
+  aaply(.(1), sd) %>%
+  melt(varnames = c("site"), value.name = "a") %>%
   cbind(all$pred_sites)
+
 
 lambda <- t(all$lambda_all) %>% 
   melt(varnames = c("site", "year"), value.name = "lambda") %>% 
@@ -313,7 +327,7 @@ boundary %>%
   ggplot(aes(x, y)) + 
   geom_raster(fill = "steelblue3", alpha = 0.5) +
   geom_raster(aes(x, y, fill =a), data = apred) + 
-  scale_fill_viridis_c(name = "a", option = "E") +
+  scale_fill_viridis_c(name = "P(a > 0)", option = "E") +
   theme_classic() +
   theme(axis.title = element_blank(),
         axis.text = element_blank(),
@@ -401,28 +415,6 @@ boundary %>%
 
 anim_save('clams.gif')
 
-# Mapping difference
-udiff <- upred %>% 
-  subset(year %in% c(1993, 2018)) %>% 
-  ddply(.(site), summarise,
-        prop = u[2] / u[1],
-        diff = u[2] - u[1],
-        x = x[1],
-        y = y[1])
-
-boundary %>% 
-  ggplot(aes(x, y)) + 
-  geom_raster(fill = "steelblue3", alpha = 0.5) +
-  geom_raster(aes(x, y, fill = diff), data = udiff) + 
-  scale_fill_viridis_c(name = "n", option = "E") +
-  theme_classic() +
-  theme(axis.title = element_blank(),
-        axis.text = element_blank(),
-        axis.ticks = element_blank(),
-        axis.line = element_blank(),
-        strip.background = element_blank()) +
-  coord_equal()
-
 
 # Movie of lambda ==============================================================
 
@@ -508,7 +500,8 @@ covars_a <- factor(c("intercept", "current"), levels = c("intercept", "current")
 beta_a <- post$beta_a %>% 
   melt(varnames = c("coeff", "iter"), value.name = "beta") %>% 
   mutate(coeff = covars_a[coeff]) %>% 
-  join(kappa)
+  join(kappa) %>% 
+  join(nu)
 
 ddply(beta_a, .(coeff), summarise, 
       mean = mean(beta), 
@@ -529,8 +522,13 @@ beta_a %>%
   xlab(expression(beta[a]))
 
 beta_a %>% 
-  subset(coeff == "current") %>% 
+  subset(coeff == "intercept") %>% 
   ggplot(aes(kappa, beta)) + 
+  geom_point()
+
+beta_a %>% 
+  subset(coeff == "intercept") %>% 
+  ggplot(aes(nu, beta)) + 
   geom_point()
 
 # Plotting beta_r ==============================================================
@@ -564,55 +562,3 @@ beta_r %>%
   subset(coeff == "intercept") %>% 
   ggplot(aes(nu, beta)) + 
   geom_point()
-
-# Other prey ===================================================================
-
-maxsize <- read.csv("../output/zero_augmented.csv") %>% 
-  ddply(.(spp), summarise,
-        max = max((count > 0) * size))
-
-comm <- read.csv("../output/zero_augmented.csv") %>% 
-  ddply(.(site, year, spp), summarise,
-        total = sum(count),
-        nquad = length(unique(quad)),
-        density = total / nquad)
-
-comm %>% 
-  subset(site %in% c("Puffin", "Leland", "Strawberry", "Boulder_PCH")) %>% 
-  ggplot(aes(year, density, color = spp)) + 
-  geom_line() + 
-  facet_grid(site~spp, scales = "free")
-
-comm %>% 
-  subset(spp %in% c("LES", "SAG")) %>% 
-  ggplot(aes(year, density, color = spp)) + 
-  geom_line() + 
-  facet_wrap(~site, scales = "fixed")
-
-urchin <- read.csv("../output/zero_augmented.csv") %>% 
-  subset(spp == "STD") %>% 
-  ddply(.(site, year, size), summarise,
-        total = sum(count),
-        nquad = length(unique(quad)),
-        density = total / nquad)
-
-urchin %>% 
-  subset(size < 50) %>% 
-  ggplot(aes(size, density, color = year, group = year)) + 
-  geom_line() + 
-  facet_wrap(~site, scales = "fixed")
-
-
-clams <- read.csv("../output/zero_augmented.csv") %>% 
-  subset(spp %in% c("SAG", "LES")) %>% 
-  ddply(.(site, year, size, spp), summarise,
-        total = sum(count),
-        nquad = length(unique(quad)),
-        density = total / nquad)
-
-clams %>% 
-  subset(site == "Puffin") %>% 
-  ggplot(aes(size, density, color = spp, group = spp)) + 
-  geom_line() + 
-  facet_wrap(~year, scales = "fixed")
-
