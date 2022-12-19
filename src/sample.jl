@@ -212,15 +212,35 @@ function sample_β_r!(pars, m)
 	b = X_r' * Ω_r * η_r + Ω_β_r * μ_β_r
 
 	β_r = rand(MvNormal(A_inv * b, A_inv))
+	η_r_pred = X_r * β_r
 
-	@pack! pars = β_r
+	@pack! pars = β_r, η_r_pred
+
+end
+
+function sample_β_end!(pars, m)
+
+	@unpack u = pars
+	@unpack X_r, Ω_r, Ω_β_r, μ_β_r = m
+
+	η_n_end = log.(u[end, :])
+
+	# Sample β_r
+	A = Symmetric(X_r' * Ω_r * X_r + Ω_β_r)
+	A_inv = inv(A)
+
+	b = X_r' * Ω_r * η_n_end + Ω_β_r * μ_β_r
+
+	β_end = rand(MvNormal(A_inv * b, A_inv))
+
+	@pack! pars = β_end
 
 end
 
 # Conjugate Gibbs updates of regression coefficients on K
 function sample_β_a!(pars, m)
 
-	@unpack η_a = pars
+	@unpack η_a, η_a_pred = pars
 	@unpack X_a, Ω_a, Ω_β_a, μ_β_a = m
 
 	# Sample β_r
@@ -230,8 +250,9 @@ function sample_β_a!(pars, m)
 	b = X_a' * Ω_a * η_a + Ω_β_a * μ_β_a
 
 	β_a = rand(MvNormal(A_inv * b, A_inv))
+	η_a_pred = X_a * β_a
 
-	@pack! pars = β_a
+	@pack! pars = β_a, η_a_pred
 
 end
 
