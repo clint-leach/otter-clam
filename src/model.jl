@@ -17,9 +17,6 @@
 	ν_tune
 	ν_prior
 
-	κ_tune
-	κ_prior
-
 	σ_tune
 	σ_prior
 
@@ -83,7 +80,6 @@ end
 
 	accept_r::Int64 = 0
 	accept_a::Int64 = 0
-	accept_κ::Int64 = 0
 	accept_ν::Int64 = 0
 	accept_σ::Int64 = 0
 
@@ -93,7 +89,6 @@ end
 
 	r::Vector{Float64}
 	a::Vector{Float64}
-	κ::Float64
 	ν::Float64
 	λ::Vector{Interpolations.BSplineInterpolation{Float64, 1, Vector{Float64}, BSpline{Linear{Throw{OnGrid}}}, Tuple{Base.OneTo{Int64}}}} 
 

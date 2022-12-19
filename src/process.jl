@@ -1,6 +1,6 @@
 # Rosenzweig-MacArthur model of multi-site prey dynamics
 function prey_all!(du, u, p, t)
-	@unpack r, a, κ, ν, λ = p
+	@unpack r, a, ν, λ = p
 
 	for i in 1:length(u)
 		du[i] = ν * (r[i] - u[i]) - a[i] * λ[i](t) * u[i]
