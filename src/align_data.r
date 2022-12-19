@@ -3,6 +3,7 @@ library(xtable)
 library(plyr)
 library(reshape2)
 library(magrittr)
+library(sf)
 
 # Loading in infauna sampling data =============================================
 
@@ -19,8 +20,9 @@ sites <- read.csv("../data/seaotter_preySampling_sites_glacierbay_2022.csv") %>%
         longitude = longitude[1],
         site_selection = site_selection[1],
         site_zone = site_zone[1],
-        nsamples = length(year))
-
+        nsamples = length(year)) %>% 
+  subset(latitude <= 58.75745) %>% 
+  subset(!(latitude  > 58.72960 & longitude < -136.3606))
 
 # Making spatial points object from site list 
 crdref <- CRS(SRS_string = "EPSG:4269")
@@ -35,13 +37,12 @@ crs(lambda.all) <- "EPSG:26708"
 sitepts_lambda <- spTransform(sitepts, wkt(lambda.all))
 
 # Extracting lambdas
-cells <- raster::extract(lambda.all, sitepts_lambda, cellnumbers = TRUE)[, 1]
-lambda <- raster::extract(lambda.all, sitepts_lambda)
-colnames(lambda) <- c(1993:2018)
+lambda <- raster::extract(lambda.all, sitepts_lambda, buffer = 800) %>% 
+  laply(colMeans, na.rm = T)
 
 lambda <- melt(lambda, varnames = c("site_name", "year"), value.name = "lambda") %>% 
-  mutate(site_name = sites$site_name[site_name]) %>% 
-  subset(!is.na(lambda))
+  mutate(site_name = sites$site_name[site_name], year = c(1993:2018)[year]) %>% 
+  subset(year < 2013)
 
 joint <- join(lambda, counts)
 
@@ -59,12 +60,31 @@ sitepts_rms <- spTransform(sitepts, wkt(rms_field))
 # Find and extract closest current layer cell to each of the sample sites
 dists <- pointDistance(rms_pts, sitepts_rms)
 closest <- apply(dists, 2, which.min)
-site_preds <- rms_pts@data[closest, 1]
+sites$current <- rms_pts@data[closest, 1]
 
-covars <- mutate(sites, 
-                 rms = site_preds) %>% 
-  subset(site_name %in% colnames(otter_array)) %>% 
-  dplyr::select(latitude, rms) %>% 
+# Shoreline complexity =========================================================
+
+# Shoreline length
+site_area <- sites %>% 
+  dplyr::select(site_name, longitude, latitude) %>% 
+  st_as_sf(coords = c("longitude", "latitude"), crs = 4326) %>% 
+  st_transform(26908) %>% 
+  st_buffer(dist = 1000)
+
+# Glacier Bay coastline, Project PH6502 downloaded from https://nsde.ngs.noaa.gov/
+gb <- st_read(dsn = "../data/PH6502/historicl1.shp") %>% 
+  st_transform(crs = 26908)
+
+# Coastline in vicinity of each site
+coast <- st_intersection(site_area, gb) 
+coast$length <- st_length(coast)
+
+sites <- ddply(coast, .(site_name), summarise,
+              shoreline = sum(length)) %>% 
+  join(sites)
+
+covars <- sites %>% 
+  dplyr::select(latitude, current, shoreline) %>% 
   as.matrix()
 
 # Generating prediction locations, covariates, and distances ===================
@@ -76,26 +96,9 @@ X <- readRDS("../data/lambda_covars.rds")
 obs_nearshore = which(X[, 2] > 0 & !is.na(rowSums(lambda.all[])))
 lambda_near <- lambda.all[obs_nearshore]
 
-# Create prediction coordinates and align with RMS data
-predpts <- coordinates(lambda.all, spatial = TRUE) %>% 
-  magrittr::extract(obs_nearshore) %>% 
-  spTransform(wkt(rms_field))
-
-pred_lonlat <- spTransform(predpts, wkt(sitepts))@coords
-
-# Extracting current speed from nearest raster cell
-dists <- pointDistance(rms_pts, predpts)
-closest <- apply(dists, 2, which.min)
-pred_rms <- rms_pts@data[closest, 1]
-
-# Making full X at all prediction sites
-pred_covars <- cbind(pred_lonlat[, 2], pred_rms)
-
 # Computing distance matrices (using the current data CRS)
 wmatch <- sites$site_name %in% colnames(otter_array)
 site_to_site <- pointDistance(sitepts_rms, sitepts_rms, lonlat = FALSE, allpairs = TRUE)[wmatch, wmatch]
-preds_to_sites <- pointDistance(predpts, sitepts_rms, lonlat = FALSE, allpairs = TRUE)[, wmatch]
-preds_to_preds <- pointDistance(predpts, predpts, lonlat = FALSE, allpairs = TRUE)
 
 # Saving all the data to load into Julia for model fitting =====================
 
@@ -105,7 +108,7 @@ sites <- mutate(sites,
                 y = sitepts_lambda@coords[, 2]) %>% 
   subset(site_name %in% colnames(otter_array))
 
-pred_sites <- coordinates(lambda.all) %>% 
+pred_sites <- coordinates(lambda.all) %>%
   magrittr::extract(obs_nearshore, )
 
 Boundaries <- readRDS("../data/Boundaries.rds")
@@ -115,13 +118,10 @@ boundary <- rasterToPoints(Boundaries$BoundaryNA) %>% as.data.frame()
 datalist <- list(lambda = otter_array,
                  y = SAG_array,
                  X = covars,
-                 X_all = pred_covars,
                  lambda_all = t(lambda_near),
                  obs_sites = sites,
                  pred_sites = pred_sites,
                  Doo = site_to_site,
-                 Duo = preds_to_sites,
-                 Duu = preds_to_preds,
                  bay_bound = boundary)
 
 # And saving
