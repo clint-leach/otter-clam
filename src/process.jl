@@ -3,7 +3,7 @@ function prey_all!(du, u, p, t)
 	@unpack r, a, κ, ν, λ = p
 
 	for i in 1:length(u)
-		du[i] = r[i] - ν * u[i] - a[i] * λ[i](t) * u[i] ^ 2 / (u[i] ^ 2 + κ ^ 2)
+		du[i] = ν * (r[i] - u[i]) - a[i] * λ[i](t) * u[i]
 	end
 end
 

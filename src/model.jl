@@ -25,8 +25,6 @@
 
 	# Distance matrices
 	Doo
-	Duo
-	Duu
 
 	# r regression priors
 	Ω_β_r
@@ -57,38 +55,31 @@
 	η_a_prior = MvNormal(inv(A_a) * b_a', inv(A_a))
 
 	a_tune
-
-	# Prediction components
-	X_r_all
-	X_a_all
-	λ_all
-
-	Σuo_r = σ_r ^ 2 * exp.(-0.5 * (Duo ./ ρ_r))
-	Σuu_r = PDMat(σ_r ^ 2 * exp.(-0.5 * (Duu ./ ρ_r)))
-
-	Σuo_a = σ_a ^ 2 * exp.(-0.5 * (Duo ./ ρ_a))
-	Σuu_a = PDMat(σ_a ^ 2 * exp.(-0.5 * (Duu ./ ρ_a)))
-
+	
 end
 
 @with_kw mutable struct parameters
 
 	r::Vector{Float64}
-	η_r::Vector{Float64} = r
+	η_r::Vector{Float64} = log.(r)
+	η_r_pred::Vector{Float64} = η_r
 	β_r::Vector{Float64}
+	β_end::Vector{Float64} = β_r
 
 	a::Vector{Float64}
-	η_a::Vector{Float64} = a
+	η_a::Vector{Float64} = log.(a)
+	η_a_pred::Vector{Float64} = η_a
 	β_a::Vector{Float64}
 
 	ν::Float64
-	κ::Float64
-	σ::Float64
+	σ::Vector{Float64}
 
-	u0::Vector{Float64} =   r ./ ν
+	u0::Vector{Float64} = r
 	u::Matrix{Float64}
 	z::Matrix{Float64}
-	loglik::Float64
+	loglik::Float64 = 0.0
+	z_mean::Matrix{Float64} = similar(z)
+	z_var::Matrix{Float64} = similar(z)
 
 	accept_r::Int64 = 0
 	accept_a::Int64 = 0

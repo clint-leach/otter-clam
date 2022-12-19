@@ -85,8 +85,8 @@ function sample_r!(pars, m)
 	# Proposal
 	forward_prop = MvNormal(η_r, r_tune)
 	η_r_star = rand(forward_prop)
-	r_star = [η_r_star[i] > 0 ? η_r_star[i] : 0.0 for i in 1:N]
-	u0_star = r_star ./ ν
+	r_star = exp.(η_r_star)
+	u0_star = r_star
 
 	# Proposal process model
 	p_star =  DEparams(r_star, a, κ, ν, λ)
@@ -128,7 +128,7 @@ function sample_a!(pars, m)
 	# Proposal
 	forward_prop = MvNormal(η_a, a_tune)
 	η_a_star = rand(forward_prop)
-	a_star = [η_a_star[i] > 0 ? η_a_star[i] : 0.0 for i in 1:N]
+	a_star = exp.(η_a_star)
 
 	# Proposal process model
 	p_star =  DEparams(r, a_star, κ, ν, λ)
@@ -160,46 +160,6 @@ function sample_a!(pars, m)
 	@pack! pars = a, η_a, accept_a, u, loglik
 end
 
-# Sample functional response saturation constant
-function sample_κ!(pars, m)
-
-	@unpack r, accept_κ, u0, a, κ, loglik, u, ν, σ = pars
-	@unpack λ, κ_tune, κ_prior, N, T = m
-
-	# Proposal
-	forward_prop = Gamma(κ / κ_tune, κ_tune)
-	κ_star = rand(forward_prop)
-	back_prop = Gamma(κ_star / κ_tune, κ_tune)
-
-	# Proposal process model
-	p_star =  DEparams(r, a, κ_star, ν, λ)
-	u_star = process_all(p_star, u0, m)
-
-	# Proposal likelihood
-	if size(u_star, 1) < T
-		loglik_star = -Inf
-	else
-		loglik_star = likelihood(u_star, σ, m)
-	end
-
-	# Computing the MH ratio
-	mh1 = loglik_star + logpdf(κ_prior, κ_star) + logpdf(back_prop, κ)
-	mh2 = loglik + logpdf(κ_prior, κ) + logpdf(forward_prop, κ_star)
-
-	# Accept/reject
-	prob = exp(mh1 - mh2)
-	if rand() > prob
-		accept_κ = 0
-	else
-		accept_κ = 1
-		κ = κ_star
-		u = u_star
-		loglik = loglik_star
-	end
-
-	@pack! pars = κ, accept_κ, u, loglik
-end
-
 function sample_ν!(pars, m)
 
 	@unpack r, ν, accept_ν, u0, a, κ, loglik, u, σ = pars
@@ -212,8 +172,7 @@ function sample_ν!(pars, m)
 
 	# Proposal process model
 	p_star =  DEparams(r, a, κ, ν_star, λ)
-	u0_star = r ./ ν_star
-	u_star = process_all(p_star, u0_star, m)
+	u_star = process_all(p_star, u0, m)
 
 	# Proposal likelihood
 	if size(u_star, 1) < T
@@ -234,11 +193,10 @@ function sample_ν!(pars, m)
 		accept_ν = 1
 		ν = ν_star
 		u = u_star
-		u0 = u0_star
 		loglik = loglik_star
 	end
 
-	@pack! pars = ν, accept_ν, u, u0, loglik
+	@pack! pars = ν, accept_ν, u, loglik
 end
 
 # Conjugate Gibbs updates of regression coefficients on r
