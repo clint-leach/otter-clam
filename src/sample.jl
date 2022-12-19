@@ -10,9 +10,9 @@ function likelihood(u, σ, m)
 		for t in 1:T
 			for j in 1:nq
 				if !ismissing(z[j, t, i])
-					n = σ / (1 - σ) * u[t, i]
+					n = σ[i] / (1 - σ[i]) * u[t, i]
 					if n > 0
-						loglik += logpdf.(NegativeBinomial(n, σ), z[j, t, i])
+						loglik += logpdf.(NegativeBinomial(n, σ[i]), z[j, t, i])
 					elseif (n == 0) & (z[j, t, i] > 0)
 						loglik += -Inf
 					end
@@ -27,36 +27,40 @@ end
 # Sample z
 function sample_z!(pars, m)
 
-	@unpack T, N = m
-	@unpack z, u, σ = pars
+	@unpack T, N, quads = m
+	@unpack z, u, σ, z_mean, z_var = pars
 
 	for i in 1:N
 		for t in 1:T
-			n = σ / (1 - σ) * u[t, i] + 1e-8
-			z[t, i] = rand(NegativeBinomial(n, σ))
+			n = σ[i] / (1 - σ[i]) * u[t, i] + 1e-8
+			z[t, i] = rand(NegativeBinomial(n, σ[i]))
+
+			z_pred = rand(NegativeBinomial(n, σ[i]), quads[t, i])
+			z_mean[t, i] = mean(z_pred)
+			z_var[t, i] = var(z_pred)
 		end
 	end
 
-	@pack! pars = z
+	@pack! pars = z, z_mean, z_var
 end
 
 # Sample measurement variance
 function sample_σ!(pars, m)
 
 	@unpack loglik, u, σ, accept_σ, r = pars
-	@unpack σ_prior, σ_tune = m
-
+	@unpack σ_prior, σ_tune, N = m
+		
 	# Proposal
-	forward_prop = truncated(Normal(σ, σ_tune), 0.0, 1.0)
-	σ_star = rand(forward_prop)
-	back_prop = truncated(Normal(σ_star, σ_tune), 0.0, 1.0)
+	forward_prop = truncated.(Normal.(σ, σ_tune), 0.0, 1.0)
+	σ_star = rand.(forward_prop)
+	back_prop = truncated.(Normal.(σ_star, σ_tune), 0.0, 1.0)
 
 	# Proposal likelihood
 	loglik_star = likelihood(u, σ_star, m)
 
 	# Computing the MH ratio
-	mh1 = loglik_star + logpdf(σ_prior, σ_star)  + logpdf(back_prop, σ)
-	mh2 = loglik + logpdf(σ_prior, σ) + logpdf(forward_prop, σ_star)
+	mh1 = loglik_star + sum(logpdf.(σ_prior, σ_star)) + sum(logpdf.(back_prop, σ))
+	mh2 = loglik + sum(logpdf.(σ_prior, σ)) + sum(logpdf.(forward_prop, σ_star))
 
 	# Accept/reject
 	prob = exp(mh1 - mh2)

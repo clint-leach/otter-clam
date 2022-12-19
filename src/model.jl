@@ -7,6 +7,7 @@
 	λ
 	X_r
 	X_a
+	quads
 	nq = size(z, 1)
 	T = size(z, 2)
 	N = size(z, 3)
