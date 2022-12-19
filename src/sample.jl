@@ -263,23 +263,26 @@ function mcmc(m, pars, keep_every, nburn, nmcmc)
 	chain = Dict(:r => fill(0.0, m.N, nkeep),
 	             :a => fill(0.0, m.N, nkeep),
 				 :nu => fill(0.0, nkeep),
-				 :kappa => fill(0.0, nkeep),
-				 :sigma => fill(0.0, nkeep),
+				 :sigma => fill(0.0, m.N, nkeep),
 				 :u0 => fill(0.0, m.N, nkeep),
 				 :beta_r => fill(0.0, size(m.X_r, 2), nkeep),
+				 :beta_end => fill(0.0, size(m.X_r, 2), nkeep),
 				 :beta_a => fill(0.0, size(m.X_a, 2), nkeep),
 				 :eta_r => fill(0.0, m.N, nkeep),
+				 :eta_r_pred => fill(0.0, m.N, nkeep),
 				 :eta_a => fill(0.0, m.N, nkeep),
+				 :eta_a_pred => fill(0.0, m.N, nkeep),
 	             :accept_r => fill(0, nkeep),
 				 :accept_a => fill(0, nkeep),
-				 :accept_kappa => fill(0, nkeep),
 				 :accept_nu => fill(0, nkeep),
 				 :accept_sigma => fill(0, nkeep),
 				 :u => fill(0.0, m.T, m.N, nkeep),
-				 :zpred => fill(0.0, m.T, m.N, nkeep))
+				 :zpred => fill(0.0, m.T, m.N, nkeep),
+				 :zmean => fill(0.0, m.T, m.N, nkeep),
+				 :zvar => fill(0.0, m.T, m.N, nkeep))
 
 	# Initialize process and likelihood
-	p = DEparams(pars.r, pars.a, pars.κ, pars.ν, m.λ)
+	p = DEparams(pars.r, pars.a, pars.ν, m.λ)
 	pars.u = process_all(p, pars.u0, m)
 	pars.loglik = likelihood(pars.u, pars.σ, m)
 
@@ -296,7 +299,7 @@ function mcmc(m, pars, keep_every, nburn, nmcmc)
 
 		sample_a!(pars, m)
 
-		sample_κ!(pars, m)
+		sample_β_a!(pars, m)
 
 		sample_r!(pars, m)
 
@@ -311,17 +314,18 @@ function mcmc(m, pars, keep_every, nburn, nmcmc)
 		end
 
 		# Sampling
+
 		sample_ν!(pars, m)
 
 		sample_a!(pars, m)
 
 		sample_β_a!(pars, m)
 
-		sample_κ!(pars, m)
-
 		sample_r!(pars, m)
 
 		sample_β_r!(pars, m)
+
+		sample_β_end!(pars, m)
 
 		sample_σ!(pars, m)
 
@@ -334,22 +338,26 @@ function mcmc(m, pars, keep_every, nburn, nmcmc)
 			chain[:r][:, idx] = pars.r
 			chain[:a][:, idx] = pars.a
 			chain[:nu][idx] = pars.ν
-			chain[:kappa][idx] = pars.κ
-			chain[:sigma][idx] = pars.σ
+			chain[:sigma][:, idx] = pars.σ
 			chain[:u0][:, idx] = pars.u0
 			chain[:beta_r][:, idx] = pars.β_r
+			chain[:beta_end][:, idx] = pars.β_end
 			chain[:beta_a][:, idx] = pars.β_a
 			chain[:eta_r][:, idx] = pars.η_r
+			chain[:eta_r_pred][:, idx] = pars.η_r_pred
 			chain[:eta_a][:, idx] = pars.η_a
+			chain[:eta_a_pred][:, idx] = pars.η_a_pred
 
 			chain[:accept_r][idx] = pars.accept_r
 			chain[:accept_a][idx] = pars.accept_a
-			chain[:accept_kappa][idx] = pars.accept_κ
 			chain[:accept_nu][idx] = pars.accept_ν
 			chain[:accept_sigma][idx] = pars.accept_σ
 
 			chain[:u][:, :, idx] = pars.u
 			chain[:zpred][:, :, idx] = pars.z
+			chain[:zmean][:, :, idx] = pars.z_mean
+			chain[:zvar][:, :, idx] = pars.z_var
+
 		end
 	end
 
