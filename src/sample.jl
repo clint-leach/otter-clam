@@ -122,7 +122,7 @@ end
 # Sample attack rate
 function sample_a!(pars, m)
 
-	@unpack r, accept_a, u0, a, η_a, κ, loglik, u, ν, σ = pars
+	@unpack r, accept_a, u0, a, η_a, loglik, u, ν, σ = pars
 	@unpack λ, a_tune, η_a_prior, N, T = m
 
 	# Proposal
