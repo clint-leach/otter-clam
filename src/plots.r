@@ -297,6 +297,30 @@ figa + figb
 
 dev.off()
 
+# Computing posterior predictive p-value for deviance ==========================
+
+D_y <- rep(0, 20000)
+D_rep <- rep(0, 20000)
+for(k in 1:20000){
+  u <- post$u[, , k]
+  sigma <- post$sigma[, k]
+  
+  for(i in 1:length(site_names)){
+    for(t in 1:length(years)){
+      
+      n <- sigma[i] / (1 - sigma[i]) * u[t, i]
+      
+      D_y[k] <- D_y[k] - 2 * dnbinom(all$y[, t, i], size = n, p = sigma[i], log = T) %>% sum(na.rm = T)
+      
+      y_rep <- rnbinom(20, size = n, p = sigma[i])
+      
+      D_rep[k] <- D_rep[k] - 2 * dnbinom(y_rep[!is.na(all$y[, t, i])], size = n, p = sigma[i], log = T) %>% sum(na.rm = T)
+    }
+  }
+}
+
+p = mean(D_y > D_rep)
+
 # Plots of latent true biomass =================================================
 
 u <- post$u %>% 
