@@ -639,22 +639,6 @@ a_shoreline %>%
 
 dev.off()
 
-# Plotting nu ==================================================================
-
-nu <- data.frame(iter = 1:length(post$nu), nu = post$nu)
-
-mean(nu$nu)
-quantile(nu$nu, c(0.05, 0.95))
-
-nu %>% 
-  ggplot(aes(iter, nu)) + 
-  geom_line()
-
-nu %>% 
-  ggplot(aes(nu)) + 
-  geom_histogram() +
-  geom_vline(xintercept = median(nu$nu), color = "blue") + 
-  theme_classic() 
 
 # Plotting sigma ===============================================================
 
@@ -681,19 +665,15 @@ beta_a <- post$beta_a %>%
 beta_a %>% 
   ggplot(aes(iter, beta)) + 
   geom_line() + 
-  facet_grid(~coeff) + 
-  ylab(expression(beta[a]))
+  facet_grid(coeff ~ .) + 
+  ylab(expression(beta[a])) + 
+  xlab("MCMC iteration") +
+  theme_classic()
 
 ddply(beta_a, .(coeff), summarise, 
       mean = mean(beta), 
       lower = quantile(beta, 0.025),
       upper = quantile(beta, 0.975))
-
-beta_a %>% 
-  ggplot(aes(iter, beta)) + 
-  geom_line() + 
-  facet_grid(~coeff) + 
-  ylab(expression(beta[a]))
 
 beta_a %>% 
   ggplot(aes(beta)) + 
@@ -714,16 +694,18 @@ beta_r <- post$beta_r %>%
   melt(varnames = c("coeff", "iter"), value.name = "beta") %>% 
   mutate(coeff = covars[coeff])
 
+beta_r %>% 
+  ggplot(aes(iter, beta)) + 
+  geom_line() + 
+  facet_grid(coeff ~ .) + 
+  ylab(expression(beta[r])) + 
+  xlab("MCMC iteration") + 
+  theme_classic()
+
 ddply(beta_r, .(coeff), summarise, 
       mean = mean(beta), 
       lower = quantile(beta, 0.025),
       upper = quantile(beta, 0.975))
-
-beta_r %>% 
-  ggplot(aes(iter, beta)) + 
-  geom_line() + 
-  facet_grid(~coeff) + 
-  ylab(expression(beta[r]))
 
 beta_r %>% 
   ggplot(aes(beta)) + 
@@ -783,6 +765,8 @@ sizedist %>%
 dev.off()
 
 # Figure S4: posterior of nu ===================================================
+
+nu <- data.frame(iter = 1:length(post$nu), nu = post$nu)
 
 pdf(file = "../output/figures/FigureS4.pdf",
     width = 4, height = 4)
