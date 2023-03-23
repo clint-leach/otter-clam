@@ -1,5 +1,6 @@
 # Sampling scripts and helper functions
 
+# Compute likelihood
 function likelihood(u, σ, m)
 
 	@unpack z, T, N, nq = m
@@ -76,7 +77,7 @@ function sample_σ!(pars, m)
 
 end
 
-# Sample prey population growth rate
+# Sample prey initial abundance (proportional to population growth rate)
 function sample_r!(pars, m)
 
 	@unpack r, η_r, accept_r, a, loglik, u, ν, σ, u0 = pars
@@ -160,6 +161,7 @@ function sample_a!(pars, m)
 	@pack! pars = a, η_a, accept_a, u, loglik
 end
 
+# Sample mortality rate
 function sample_ν!(pars, m)
 
 	@unpack r, ν, accept_ν, u0, a, loglik, u, σ = pars
@@ -199,7 +201,7 @@ function sample_ν!(pars, m)
 	@pack! pars = ν, accept_ν, u, loglik
 end
 
-# Conjugate Gibbs updates of regression coefficients on r
+# Conjugate Gibbs updates of regression coefficients on initial abundance
 function sample_β_r!(pars, m)
 
 	@unpack η_r = pars
@@ -218,6 +220,7 @@ function sample_β_r!(pars, m)
 
 end
 
+# Conjugate update or regression coefficients at end of time series
 function sample_β_end!(pars, m)
 
 	@unpack u = pars
@@ -237,7 +240,7 @@ function sample_β_end!(pars, m)
 
 end
 
-# Conjugate Gibbs updates of regression coefficients on K
+# Conjugate Gibbs updates of regression coefficients on attack rate
 function sample_β_a!(pars, m)
 
 	@unpack η_a, η_a_pred = pars
@@ -256,6 +259,7 @@ function sample_β_a!(pars, m)
 
 end
 
+# Full MCMC sampler
 function mcmc(m, pars, keep_every, nburn, nmcmc)
 
 	nkeep = floor(Int64, nmcmc / keep_every)
