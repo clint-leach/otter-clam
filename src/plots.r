@@ -489,69 +489,7 @@ figa + figb + figc + plot_layout(ncol = 3, nrow = 1)
 
 dev.off()
 
-# Plotting linear predictors ===================================================
-
-# Abundance
-eta_r_pred <- post$eta_r_pred %>% 
-  melt(varnames = c("site_name", "iter"), value.name = "eta_r_pred") %>% 
-  mutate(site_name = factor(site_names[site_name], levels = ordered$site_name))
-
-eta_r <- post$eta_r %>% 
-  melt(varnames = c("site_name", "iter"), value.name = "eta_r") %>% 
-  mutate(site_name = factor(site_names[site_name], levels = ordered$site_name)) %>% 
-  join(eta_r_pred)
-
-eta_r %>% 
-  ggplot(aes(eta_r_pred, eta_r)) + 
-  geom_bin2d(bins = 100) + 
-  geom_abline(intercept = 0, slope = 1) + 
-  scale_fill_viridis_c() + 
-  xlab(expression(X[r] * beta[r])) + 
-  ylab(expression(eta[r])) + 
-  theme_classic() + 
-  facet_wrap(~site_name, scales = "fixed")
-
-# Attack rate
-eta_a_pred <- post$eta_a_pred %>% 
-  melt(varnames = c("site_name", "iter"), value.name = "eta_a_pred") %>% 
-  mutate(site_name = factor(site_names[site_name], levels = ordered$site_name))
-
-eta_a <- post$eta_a %>% 
-  melt(varnames = c("site_name", "iter"), value.name = "eta_a") %>% 
-  mutate(site_name = factor(site_names[site_name], levels = ordered$site_name)) %>% 
-  join(eta_a_pred)
-
-eta_a %>% 
-  ggplot(aes(eta_a_pred, eta_a)) + 
-  geom_bin2d(bins = 50) + 
-  geom_abline(intercept = 0, slope = 1) + 
-  scale_fill_viridis_c() + 
-  xlab(expression(X[a] * beta[a])) + 
-  ylab(expression(eta[a])) + 
-  theme_classic() +
-  facet_wrap(~site_name, scales = "fixed")
-
-eta_a %>% 
-  ddply(.(site_name), summarise,
-        med_main = median(eta_a),
-        med_pred = median(eta_a_pred),
-        upper_main = quantile(eta_a, 0.9),
-        lower_main = quantile(eta_a, 0.1),
-        upper_pred = quantile(eta_a_pred, 0.9),
-        lower_pred = quantile(eta_a_pred, 0.1)) %>% 
-  join(all$obs_sites) %>% 
-  subset(site_name %in% nonzero$site_name) %>%
-  ggplot(aes(med_main, med_pred, color = as.numeric(shoreline))) + 
-  geom_point() +
-  geom_linerange(aes(ymin = lower_pred, ymax = upper_pred), alpha = 0.5) +  
-  geom_linerange(aes(xmin = lower_main, xmax = upper_main), alpha = 0.5) + 
-  scale_color_viridis_c(option = "A") +
-  geom_abline(intercept = 0, slope = 1) + 
-  theme_classic() + 
-  xlab(expression(X[a] * beta[a])) + 
-  ylab(expression(log(a)))
-
-# Plotting site growth rates ==================================================
+# Plotting site initial abundances =============================================
 
 r <- post$eta_r %>% 
   melt(varnames = c("site_name", "iter"), value.name = "r") %>% 
