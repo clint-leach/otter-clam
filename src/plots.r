@@ -563,15 +563,16 @@ a_shoreline <- X_a_shoreline %*% post$beta_a %>%
   cbind(X_pred_nat)
 
 pdf(file = "../output/figures/Figure5.pdf",
-    width = 6, height = 6)
+    width = 3.15, height = 3.15)
 
 a_shoreline %>% 
   ggplot(aes(shoreline, eta_a_med)) + 
-  geom_line(size = 1) + 
+  geom_line(size = 0.25) + 
   geom_ribbon(aes(shoreline, ymin = eta_a_low, ymax = eta_a_high), alpha = 0.25, fill = "gray60") + 
-  geom_point(aes(as.numeric(shoreline), eta_a_med), data = asum, size = 1) +
-  geom_linerange(aes(as.numeric(shoreline), ymin = eta_a_low, ymax = eta_a_high), data = asum, alpha = 0.5, size = 0.25) +
+  geom_point(aes(as.numeric(shoreline), eta_a_med), data = asum, size = 0.25) +
+  geom_linerange(aes(as.numeric(shoreline), ymin = eta_a_low, ymax = eta_a_high), data = asum, alpha = 0.5, size = 0.1) +
   theme_classic() + 
+  theme(text = element_text(size = 8.0), axis.line = element_line(size = 0.3), axis.ticks = element_line(size = 0.3)) +
   xlab("length of shoreline (m)") + 
   ylab("log(attack rate)")
 
