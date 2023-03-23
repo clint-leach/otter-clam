@@ -11,8 +11,8 @@ source("lambda_helpers.r")
 
 # Load in data and MCMC output =================================================
 
-X <- readRDS("../data/lambda_covars.rds")
-Boundaries <- readRDS("../data/Boundaries.rds")
+X <- readRDS("../data/otters/lambda_covars.rds")
+Boundaries <- readRDS("../data/otters/Boundaries.rds")
 
 Boundary <- Boundaries$Boundary
 BoundaryNA <- Boundaries$BoundaryNA
@@ -21,7 +21,7 @@ ind <- which(Boundary.us[] == 1)
 
 # Extract parameters
 
-MCMC.logistic.chains <- readRDS("../data/lambda_mcmc.rds")
+MCMC.logistic.chains <- readRDS("../data/otters/lambda_mcmc.rds")
 status <- sum(!is.na(MCMC.logistic.chains[[3]]))
 burn <- floor(status/2)
 thin <- 1/10

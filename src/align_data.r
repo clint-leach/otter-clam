@@ -7,14 +7,14 @@ library(sf)
 
 # Loading in infauna sampling data =============================================
 
-# Raw data , downloaded from https://doi.org/10.5066/P9LODH0Z and stored in 'data' directory
-counts <- read.csv("../data/seaotter_preySampling_zeroPopulated_glacierbay_2022.csv") %>% 
+# Raw data , downloaded from https://doi.org/10.5066/P9LODH0Z and stored in 'data/prey' directory
+counts <- read.csv("../data/prey/seaotter_preySampling_zeroPopulated_glacierbay_2022.csv") %>% 
   subset(species_code == "SAG") %>% 
   ddply(.(site_name, year, quad), summarise,
         total = sum(count))
 
 # Sampling Sites 
-sites <- read.csv("../data/seaotter_preySampling_sites_glacierbay_2022.csv") %>% 
+sites <- read.csv("../data/prey/seaotter_preySampling_sites_glacierbay_2022.csv") %>% 
   ddply(.(site_name), summarise, 
         latitude = latitude[1],
         longitude = longitude[1],
@@ -90,7 +90,7 @@ covars <- sites %>%
 # Generating prediction locations, covariates, and distances ===================
 
 # Loading in otter covariates
-X <- readRDS("../data/lambda_covars.rds")
+X <- readRDS("../data/otters/lambda_covars.rds")
 
 # Subset lambda by nearshore (and not NA)
 obs_nearshore = which(X[, 2] > 0 & !is.na(rowSums(lambda.all[])))
@@ -111,7 +111,7 @@ sites <- mutate(sites,
 pred_sites <- coordinates(lambda.all) %>%
   magrittr::extract(obs_nearshore, )
 
-Boundaries <- readRDS("../data/Boundaries.rds")
+Boundaries <- readRDS("../data/otters/Boundaries.rds")
 boundary <- rasterToPoints(Boundaries$BoundaryNA) %>% as.data.frame()
 
 # Wrapping it all up in a list
