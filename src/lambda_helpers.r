@@ -1,3 +1,7 @@
+# Author: Xinyi Lu
+# Implements numerical solution for the ecological diffusion PDE described in 
+# Lu et al. (2019) Environmetrics
+
 ###
 ### C++ function for propagation
 ###
