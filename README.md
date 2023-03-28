@@ -2,7 +2,7 @@
 
 Code for analyses conducted in:
 
-Leach, Clinton B., *et al.*, Revealing the extent of sea otter impacts on bivalve prey through multi-trophic monitoring and mechanistic models, In Review, *Journal of Animal Ecology*
+Leach, Clinton B., *et al.*, Revealing the extent of sea otter impacts on bivalve prey through multi-trophic monitoring and mechanistic models, 2023, *Journal of Animal Ecology*
 
 ## Abstract
 
@@ -19,15 +19,15 @@ This repository contains the code to process the data and align with sea otter a
 All code is contained in the `src` directory. The code expects to find the following datasets in a `data` directory:
 
 -   `data/prey`: Intertidal and subtidal sea otter prey sampling data from <https://doi.org/10.5066/P9LODH0Z>
--   `data/otters`: output from sea otter ecological diffusion model (Lu *et al.* 2019) from ...
--   `data/current`: raster of root-mean-squared estimates of current speed from tidal circulation (Drew *et al*. 2013) from ...
+-   `data/otters`: output from sea otter ecological diffusion model (Lu *et al.* 2019) from <https://doi.org/10.5061/dryad.vt4b8gtx6>
+-   `data/current`: raster of root-mean-squared estimates of current speed from tidal circulation (Drew *et al*. 2013) from <https://doi.org/10.5061/dryad.vt4b8gtx6>
 -   `data/PH6502`: shapefile of Glacier Bay shoreline, downloaded from the NOAA shoreline data explorer at <https://nsde.ngs.noaa.gov/> (Project ID PH6502)
 
 Files in the `src` directory are as follows:
 
 -   `align_data.r`: generates all of the required inputs for the model, including the clam abundance observations, the sea otter abundance time series for each prey sampling site, and the environmental covariates for each site (latitude, current speed, and shoreline complexity)
 
--   `compute_lambda.r`: Computes the posterior mean sea otter abundance raster from the Lu *et al.* 2019 model output; requires `glb_specs.r` and `lambda_helpers.r`
+-   `compute_lambda.r`: Script from Lu *et al* that computes the posterior mean sea otter abundance raster from posterior samples of the sea otter diffusion model parameters; requires `glb_specs.r` and `lambda_helpers.r`
 
 -   `plots.r`: Includes all of the code to generate figures and tables from the manuscript, as well as additional exploratory figures; expects an `output` directory from which to read in MCMC output produced by `run.jl`, and an `output/figures` directory to write figures to
 
