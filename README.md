@@ -1,3 +1,5 @@
+[![DOI](https://zenodo.org/badge/333923357.svg)](https://zenodo.org/badge/latestdoi/333923357)
+
 # Sea otter effects on butter clams in Glacier Bay, Alaska
 
 Code for analyses conducted in:
