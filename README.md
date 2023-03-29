@@ -27,7 +27,7 @@ Files in the `src` directory are as follows:
 
 -   `align_data.r`: generates all of the required inputs for the model, including the clam abundance observations, the sea otter abundance time series for each prey sampling site, and the environmental covariates for each site (latitude, current speed, and shoreline complexity)
 
--   `compute_lambda.r`: Script from Lu *et al* that computes the posterior mean sea otter abundance raster from posterior samples of the sea otter diffusion model parameters; requires `glb_specs.r` and `lambda_helpers.r`
+-   `compute_lambda.r`: Script from Lu *et al* (2019) that computes the posterior mean sea otter abundance raster from posterior samples of the sea otter diffusion model parameters; requires `glb_specs.r` and `lambda_helpers.r`
 
 -   `plots.r`: Includes all of the code to generate figures and tables from the manuscript, as well as additional exploratory figures; expects an `output` directory from which to read in MCMC output produced by `run.jl`, and an `output/figures` directory to write figures to
 
@@ -38,3 +38,11 @@ Files in the `src` directory are as follows:
 -   `run.jl`: sets up and runs the MCMC
 
 -   `sample.jl`: defines all of the machinery for the MCMC including the log-likelihood function, functions to sample each of the parameters, and function to execute the full MCMC
+
+## Related work
+
+This project takes as inputs raster layers produced in the following papers:
+
+Lu, X., Williams, P. J., Hooten, M. B., Powell, J. A., Womble, J. N., & Bower, M. R. (2019). Nonlinear reaction–diffusion process models improve inference for population dynamics. Environmetrics, e2604, 1–17. <https://doi.org/10.1002/env.2604>
+
+Drew, G. S., Piatt, J. F., & Hill, D. F. (2013). Effects of currents and tides on fine-scale use of marine bird habitats in a Southeast Alaska hotspot. Marine Ecology Progress Series, 487, 275–286. <https://doi.org/10.3354/meps10304>
